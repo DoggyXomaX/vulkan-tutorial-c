@@ -25,6 +25,7 @@ typedef struct {
 typedef struct {
     bool error;
     FamilyIndex graphicsFamily;
+    FamilyIndex presentationFamily;
 } QueueFamilyIndices;
 
 typedef struct {
@@ -38,6 +39,7 @@ typedef struct {
     VkPhysicalDevice vkPhysicalDevice;
     VkDevice vkDevice;
     VkQueue vkGraphicsQueue;
+    VkQueue vkPresentationQueue;
     VkSurfaceKHR vkSurfaceKHR;
 
     void ( *Run )( void );

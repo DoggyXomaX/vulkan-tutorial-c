@@ -20,7 +20,9 @@ AppProperties app = {
     .title = "App Window",
     .applicationName = "Hello Triangle",
     .engineName = "Test Engine",
+
     .window = NULL,
+    .vkPhysicalDevice = VK_NULL_HANDLE,
 
     .Run = Run,
     .InitWindow = InitWindow,
@@ -153,7 +155,12 @@ VkResult CreateVulkanInstance() {
 VkResult CreateSurface() {
     debug_entry( "CreateSurface" );
 
-    return glfwCreateWindowSurface( app.vkInstance, app.window, NULL, &app.vkSurfaceKHR );
+    return glfwCreateWindowSurface(
+        app.vkInstance,
+        app.window,
+        NULL,
+        &app.vkSurfaceKHR
+    );
 }
 VkResult PickPhysicalDevice() {
     debug_entry( "PickPhysicalDevice" );
@@ -188,14 +195,26 @@ VkResult CreateLogicalDevice() {
     debug_entry( "CreateLogicalDevice" );
 
     QueueFamilyIndices indices = app.FindQueueFamilies( app.vkPhysicalDevice );
-    float queuePriority = 1.0f;
-    VkDeviceQueueCreateInfo queueCreateInfo = {
-        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-        .pNext = NULL,
-        .queueFamilyIndex = indices.graphicsFamily.value,
-        .queueCount = 1,
-        .pQueuePriorities = &queuePriority
+    
+    int queueCount = 2;
+    VkDeviceQueueCreateInfo queueCreateInfos[ queueCount ];
+    uint32_t uniqueQueueFamilies[] = {
+        indices.graphicsFamily.value,
+        indices.presentationFamily.value
     };
+
+    float queuePriority = 1.0f;
+    for ( int i = 0; i < queueCount; i++ ) {
+        VkDeviceQueueCreateInfo queueCreateInfo = {
+            .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .pNext = NULL,
+            .queueFamilyIndex = uniqueQueueFamilies[ i ],
+            .queueCount = 1,
+            .pQueuePriorities = &queuePriority
+        };
+        queueCreateInfos[ i ] = queueCreateInfo;
+    }
+    
 
     VkPhysicalDeviceFeatures deviceFeatures;
     app.ClearFeatures( &deviceFeatures );
@@ -204,8 +223,8 @@ VkResult CreateLogicalDevice() {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .pNext = NULL,
         .pEnabledFeatures = &deviceFeatures,
-        .queueCreateInfoCount = 1,
-        .pQueueCreateInfos = &queueCreateInfo,
+        .queueCreateInfoCount = queueCount,
+        .pQueueCreateInfos = queueCreateInfos,
         .enabledExtensionCount = 0,
         .ppEnabledExtensionNames = NULL,
         .enabledLayerCount = 0,
@@ -216,6 +235,7 @@ VkResult CreateLogicalDevice() {
     if ( result != VK_SUCCESS ) return result;
 
     vkGetDeviceQueue( app.vkDevice, indices.graphicsFamily.value, 0, &app.vkGraphicsQueue );
+    vkGetDeviceQueue( app.vkDevice, indices.presentationFamily.value, 0, &app.vkPresentationQueue );
 
     return VK_SUCCESS;
 }
@@ -267,8 +287,8 @@ bool IsDeviceSuitable( VkPhysicalDevice device ) {
     isSupported = (
         deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU &&
         deviceFeatures.geometryShader &&
-        !indices.error &&
-        indices.graphicsFamily.isSet
+        !indices.error && 
+        indices.graphicsFamily.isSet && indices.presentationFamily.isSet
     );
 
     char driverVersion[ 64 ];
@@ -297,6 +317,10 @@ QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice device ) {
         .graphicsFamily = { 
             .isSet = false,
             .value = 0
+        },
+        .presentationFamily = {
+            .isSet = false,
+            .value = 0
         }
     };
 
@@ -306,11 +330,23 @@ QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice device ) {
     vkGetPhysicalDeviceQueueFamilyProperties( device, &queueFamilyCount, queueFamilyProperties );
 
     for ( int i = 0; i < queueFamilyCount; i++ ) {
-        if ( !queueFamilyProperties[ i ].queueFlags & VK_QUEUE_GRAPHICS_BIT ) continue;
+        if ( queueFamilyProperties[ i ].queueFlags & VK_QUEUE_GRAPHICS_BIT ) {
+            indices.graphicsFamily.isSet = true;
+            indices.graphicsFamily.value = i;
+        }
 
-        indices.error = false;
-        indices.graphicsFamily.isSet = true;
-        indices.graphicsFamily.value = i;
+        VkBool32 presentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR( device, i, app.vkSurfaceKHR, &presentSupport );
+
+        if ( presentSupport ) {
+            indices.presentationFamily.isSet = true;
+            indices.presentationFamily.value = i;
+        }
+
+        if ( indices.graphicsFamily.isSet && indices.presentationFamily.isSet ) {
+            indices.error = false;
+            break;
+        }
     }
 
     return indices;
