@@ -14,14 +14,6 @@
 #define debug_method(x) puts("\t>>>> "x)
 
 typedef struct {
-    int width;
-    int height;
-    const char *title;
-    const char *applicationName;
-    const char *engineName;
-} AppProperties;
-
-typedef struct {
     bool isSet;
     uint32_t value;
 } FamilyIndex;
@@ -31,22 +23,32 @@ typedef struct {
     FamilyIndex graphicsFamily;
 } QueueFamilyIndices;
 
-// public
-void HTA_Run( void );
+typedef struct {
+    int width;
+    int height;
+    const char *title;
+    const char *applicationName;
+    const char *engineName;
+    GLFWwindow *window;
+    VkInstance vkInstance;
+    VkPhysicalDevice vkPhysicalDevice;
+    VkDevice vkDevice;
+    VkQueue vkGraphicsQueue;
 
-// private
-void HTA_InitWindow( void );
-void HTA_MainLoop( void );
-void HTA_Cleanup( void );
+    void ( *Run )( void );
+    void ( *InitWindow )( void );
+    void ( *MainLoop )( void );
+    void ( *Cleanup )( void );
+    VkResult ( *InitVulkan )( void );
+    VkResult ( *CreateVulkanInstance )( void );
+    VkResult ( *PickPhysicalDevice )( void );
+    VkResult ( *CreateLogicalDevice )( void );
+    void ( *ClearFeatures )( VkPhysicalDeviceFeatures* );
+    void ( *GetDriverVersion )( char*, uint32_t, uint32_t );
+    bool ( *IsDeviceSuitable )( VkPhysicalDevice );
+    QueueFamilyIndices ( *FindQueueFamilies )( VkPhysicalDevice );
+} AppProperties;
 
-VkResult HTA_InitVulkan( void );
-VkResult HTA_CreateVulkanInstance( void );
-VkResult HTA_PickPhysicalDevice( void );
-VkResult HTA_CreateLogicalDevice( void );
-
-void HTA_ClearFeatures( VkPhysicalDeviceFeatures* );
-void HTA_GetDriverVersion( char*, uint32_t, uint32_t );
-bool HTA_IsDeviceSuitable( VkPhysicalDevice );
-QueueFamilyIndices HTA_FindQueueFamilies( VkPhysicalDevice );
+extern AppProperties app;
 
 #endif

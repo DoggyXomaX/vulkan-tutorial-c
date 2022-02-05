@@ -1,7 +1,7 @@
 #include "src/HelloTriangleApplication.h"
 
 int main() {
-    HTA_Run();
+    app.Run();
 
     return 0;
 }
