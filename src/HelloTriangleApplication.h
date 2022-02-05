@@ -59,9 +59,12 @@ typedef struct {
     VkQueue vkGraphicsQueue;
     VkQueue vkPresentationQueue;
     VkSurfaceKHR vkSurfaceKHR;
+    
     VkSwapchainKHR vkSwapchainKHR;
-
     VkImage *swapChainImages;
+    uint32_t swapChainImagesLength;
+    VkFormat swapChainImageFormat;
+    VkExtent2D swapChainExtent;
 
     void ( *Run )( void );
     void ( *InitWindow )( void );

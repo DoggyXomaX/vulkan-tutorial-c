@@ -36,6 +36,7 @@ AppProperties app = {
     .vkPhysicalDevice = VK_NULL_HANDLE,
     
     .swapChainImages = NULL,
+    .swapChainImagesLength = 0,
 
     .Run = Run,
     .InitWindow = InitWindow,
@@ -106,6 +107,8 @@ void Cleanup() {
     vkDestroyInstance( app.vkInstance, NULL );
     glfwDestroyWindow( app.window );
     glfwTerminate();
+
+    if ( app.swapChainImages ) free( app.swapChainImages );
 
     ok( "Cleanup" );
 }
@@ -333,8 +336,30 @@ VkResult CreateSwapChain() {
         createInfo.pQueueFamilyIndices = queueFamilyIndices;
     }
 
+    VkResult result = vkCreateSwapchainKHR( app.vkDevice, &createInfo, NULL, &app.vkSwapchainKHR );
+    if ( result != VK_SUCCESS ) {
+        fail( "CreateSwapChain", "vkCreateSwapchainKHR error\n", NULL );
+        return result;
+    }
+    
+    result = vkGetSwapchainImagesKHR( app.vkDevice, app.vkSwapchainKHR, &app.swapChainImagesLength, NULL );
+    if ( result != VK_SUCCESS ) {
+        fail( "CreateSwapChain", "vkGetSwapchainImagesKHR\n", NULL );
+        return result;
+    }
+
+    app.swapChainImages = ( VkImage* )calloc( imageCount, sizeof( VkImage ) );
+    result = vkGetSwapchainImagesKHR( app.vkDevice, app.vkSwapchainKHR, &app.swapChainImagesLength, app.swapChainImages );
+    if ( result != VK_SUCCESS ) {
+        fail( "CreateSwapChain", "vkGetSwapchainImagesKHR\n", NULL );
+        return result;
+    }
+
+    app.swapChainImageFormat = surfaceFormat.format;
+    app.swapChainExtent = extent;
+
     ok( "CreateSwapChain" );
-    return vkCreateSwapchainKHR( app.vkDevice, &createInfo, NULL, &app.vkSwapchainKHR );
+    return VK_SUCCESS;
 }
 
 /* METHODS */
