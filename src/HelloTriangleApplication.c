@@ -38,6 +38,7 @@ AppProperties app = {
     
     .swapChainImages = NULL,
     .swapChainImageLength = 0,
+    .swapChainImageViews = NULL,
 
     .Run = Run,
     .InitWindow = InitWindow,
@@ -103,20 +104,26 @@ void MainLoop() {
 void Cleanup() {
     entry( "Cleanup" );
 
-    vkDestroySwapchainKHR( app.vkDevice, app.vkSwapchainKHR, NULL );
-    vkDestroyDevice( app.vkDevice, NULL );
-    vkDestroySurfaceKHR( app.vkInstance, app.vkSurfaceKHR, NULL );
-    vkDestroyInstance( app.vkInstance, NULL );
-    glfwDestroyWindow( app.window );
-    glfwTerminate();
-
-    if ( app.swapChainImages ) free( app.swapChainImages );
+    puts( "Cleaning Swap chain image views..." );
     if ( app.swapChainImageViews ) {
         for ( int i = 0; i < app.swapChainImageLength; i++ ) {
             vkDestroyImageView( app.vkDevice, app.swapChainImageViews[ i ], NULL );
         }
         free( app.swapChainImageViews );
     }
+
+    puts( "Cleaning Swap chain images..." );
+    if ( app.swapChainImages ) {
+        free( app.swapChainImages );
+    }
+
+    puts( "Cleaning Vulkan and glfw..." );
+    vkDestroySwapchainKHR( app.vkDevice, app.vkSwapchainKHR, NULL );
+    vkDestroyDevice( app.vkDevice, NULL );
+    vkDestroySurfaceKHR( app.vkInstance, app.vkSurfaceKHR, NULL );
+    vkDestroyInstance( app.vkInstance, NULL );
+    glfwDestroyWindow( app.window );
+    glfwTerminate();
 
     ok( "Cleanup" );
 }
@@ -152,6 +159,12 @@ VkResult InitVulkan() {
     result = app.CreateSwapChain();
     if ( result != VK_SUCCESS ) {
         fail( "InitVulkan", "failed to create swap chain!\n", NULL );
+        return result;
+    }
+
+    result = app.CreateImageViews();
+    if ( result != VK_SUCCESS ) {
+        fail( "InitVulkan", "failed to create image views!\n", NULL );
         return result;
     }
 
@@ -372,6 +385,7 @@ VkResult CreateSwapChain() {
 VkResult CreateImageViews() {
     entry( "CreateImageViews" );
 
+    printf( "Creating %d image views\n", app.swapChainImageLength );
     app.swapChainImageViews = ( VkImageView* )calloc( app.swapChainImageLength, sizeof( VkImageView ) );
 
     for ( int i = 0; i < app.swapChainImageLength; i++ ) {
@@ -391,6 +405,9 @@ VkResult CreateImageViews() {
             return result;
         } 
     }
+
+    ok( "CreateImageViews" );
+    return VK_SUCCESS;
 }
 
 /* METHODS */
