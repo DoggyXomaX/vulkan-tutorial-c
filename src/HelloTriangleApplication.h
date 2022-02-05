@@ -28,12 +28,16 @@ typedef struct {
     FamilyIndex presentationFamily;
 } QueueFamilyIndices;
 
+#define DEVICE_EXTENSION_COUNT 1
+
 typedef struct {
     int width;
     int height;
     const char *title;
     const char *applicationName;
     const char *engineName;
+
+    const char *deviceExtensions[ DEVICE_EXTENSION_COUNT ];
     GLFWwindow *window;
     VkInstance vkInstance;
     VkPhysicalDevice vkPhysicalDevice;
@@ -54,6 +58,7 @@ typedef struct {
     void ( *ClearFeatures )( VkPhysicalDeviceFeatures* );
     void ( *GetDriverVersion )( char*, uint32_t, uint32_t );
     bool ( *IsDeviceSuitable )( VkPhysicalDevice );
+    bool ( *CheckDeviceExtensionSupport )( VkPhysicalDevice );
     QueueFamilyIndices ( *FindQueueFamilies )( VkPhysicalDevice );
 } AppProperties;
 

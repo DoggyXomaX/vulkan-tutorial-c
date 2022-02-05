@@ -12,6 +12,7 @@ VkResult CreateLogicalDevice( void );
 void ClearFeatures( VkPhysicalDeviceFeatures* );
 void GetDriverVersion( char*, uint32_t, uint32_t );
 bool IsDeviceSuitable( VkPhysicalDevice );
+bool CheckDeviceExtensionSupport( VkPhysicalDevice );
 QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice );
 
 AppProperties app = { 
@@ -21,6 +22,9 @@ AppProperties app = {
     .applicationName = "Hello Triangle",
     .engineName = "Test Engine",
 
+    .deviceExtensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    },
     .window = NULL,
     .vkPhysicalDevice = VK_NULL_HANDLE,
 
@@ -36,6 +40,7 @@ AppProperties app = {
     .ClearFeatures = ClearFeatures,
     .GetDriverVersion = GetDriverVersion,
     .IsDeviceSuitable = IsDeviceSuitable,
+    .CheckDeviceExtensionSupport = CheckDeviceExtensionSupport,
     .FindQueueFamilies = FindQueueFamilies
 };
 
@@ -225,8 +230,8 @@ VkResult CreateLogicalDevice() {
         .pEnabledFeatures = &deviceFeatures,
         .queueCreateInfoCount = queueCount,
         .pQueueCreateInfos = queueCreateInfos,
-        .enabledExtensionCount = 0,
-        .ppEnabledExtensionNames = NULL,
+        .enabledExtensionCount = DEVICE_EXTENSION_COUNT,
+        .ppEnabledExtensionNames = app.deviceExtensions,
         .enabledLayerCount = 0,
         .ppEnabledLayerNames = NULL
     };
@@ -288,12 +293,12 @@ bool IsDeviceSuitable( VkPhysicalDevice device ) {
         deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU &&
         deviceFeatures.geometryShader &&
         !indices.error && 
-        indices.graphicsFamily.isSet && indices.presentationFamily.isSet
+        indices.graphicsFamily.isSet && indices.presentationFamily.isSet &&
+        app.CheckDeviceExtensionSupport( device )
     );
 
     char driverVersion[ 64 ];
     GetDriverVersion( driverVersion, deviceProperties.vendorID, deviceProperties.driverVersion );
-
     printf( 
         "%s\n"
         "\t%s (Device ID: %u) (Driver version: %s)\n"
@@ -308,6 +313,27 @@ bool IsDeviceSuitable( VkPhysicalDevice device ) {
     );
 
     return isSupported;
+}
+bool CheckDeviceExtensionSupport( VkPhysicalDevice device ) {
+    uint32_t extensionCount;
+    vkEnumerateDeviceExtensionProperties( device, NULL, &extensionCount, NULL );
+    VkExtensionProperties availableExtensions[ extensionCount ];
+    vkEnumerateDeviceExtensionProperties( device, NULL, &extensionCount, availableExtensions );
+
+    int checkedExtensionCount = 0;
+
+    for ( int i = 0; i < extensionCount; i++ ) {
+        VkExtensionProperties prop = availableExtensions[ i ];
+        for ( int j = 0; j < DEVICE_EXTENSION_COUNT; j++ ) {
+            if ( strcmp( prop.extensionName, app.deviceExtensions[ j ] ) == 0 ) {
+                checkedExtensionCount++;
+                break;
+            }
+        }
+        if ( checkedExtensionCount == DEVICE_EXTENSION_COUNT ) return true;
+    }
+
+    return false;
 }
 QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice device ) {
     debug_method( "FindQueueFamilies" );
