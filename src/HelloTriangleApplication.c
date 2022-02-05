@@ -1,17 +1,16 @@
 #include "HelloTriangleApplication.h"
 
+/* VISIBILITY */
 void Run( void );
 void InitWindow( void );
 void MainLoop( void );
 void Cleanup( void );
-
 VkResult InitVulkan( void );
 VkResult CreateVulkanInstance( void );
 VkResult CreateSurface( void );
 VkResult PickPhysicalDevice( void );
 VkResult CreateLogicalDevice( void );
 VkResult CreateSwapChain( void );
-
 void ClearFeatures( VkPhysicalDeviceFeatures* );
 void GetDriverVersion( char*, uint32_t, uint32_t );
 bool IsDeviceSuitable( VkPhysicalDevice );
@@ -22,6 +21,7 @@ VkSurfaceFormatKHR ChooseSwapSurfaceFormat( const VkSurfaceFormatKHR*, uint32_t 
 VkPresentModeKHR ChooseSwapPresentMode( const VkPresentModeKHR*, uint32_t );
 VkExtent2D ChooseSwapExtent( const VkSurfaceCapabilitiesKHR );
 
+/* APP */
 AppProperties app = { 
     .width = 400,
     .height = 400,
@@ -34,14 +34,14 @@ AppProperties app = {
     },
     .window = NULL,
     .vkPhysicalDevice = VK_NULL_HANDLE,
+    
+    .swapChainImages = NULL,
 
-    // Entries
     .Run = Run,
     .InitWindow = InitWindow,
     .MainLoop = MainLoop,
     .Cleanup = Cleanup,
 
-    // Vulkan entries
     .InitVulkan = InitVulkan,
     .CreateSurface = CreateSurface,
     .CreateVulkanInstance = CreateVulkanInstance,
@@ -49,7 +49,6 @@ AppProperties app = {
     .CreateLogicalDevice = CreateLogicalDevice,
     .CreateSwapChain = CreateSwapChain,
 
-    // Methods
     .ClearFeatures = ClearFeatures,
     .GetDriverVersion = GetDriverVersion,
     .IsDeviceSuitable = IsDeviceSuitable,
@@ -61,6 +60,7 @@ AppProperties app = {
     .ChooseSwapExtent = ChooseSwapExtent
 };
 
+/* ENTRIES */
 void Run( void ) {
     entry( "Run" );
 
@@ -110,6 +110,7 @@ void Cleanup() {
     ok( "Cleanup" );
 }
 
+/* VULKAN ENTRIES */
 VkResult InitVulkan() {
     entry( "InitVulkan" );
 
@@ -336,6 +337,7 @@ VkResult CreateSwapChain() {
     return vkCreateSwapchainKHR( app.vkDevice, &createInfo, NULL, &app.vkSwapchainKHR );
 }
 
+/* METHODS */
 void ClearFeatures( VkPhysicalDeviceFeatures *pFeatures ) {
     method( "ClearFeatures" );
 

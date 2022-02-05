@@ -61,6 +61,8 @@ typedef struct {
     VkSurfaceKHR vkSurfaceKHR;
     VkSwapchainKHR vkSwapchainKHR;
 
+    VkImage *swapChainImages;
+
     void ( *Run )( void );
     void ( *InitWindow )( void );
     void ( *MainLoop )( void );
