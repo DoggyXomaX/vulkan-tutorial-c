@@ -9,11 +9,7 @@
 #include <GLFW/glfw3native.h>
 
 #include <stdio.h>
-
-#ifndef bool
-    #include <stdbool.h>
-#endif
-
+#include <stdbool.h>
 #include "utils.h"
 
 #define entry(x) puts("[Entry]: "x" {")
