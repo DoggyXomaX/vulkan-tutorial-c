@@ -58,7 +58,8 @@ typedef struct {
     
     VkSwapchainKHR vkSwapchainKHR;
     VkImage *swapChainImages;
-    uint32_t swapChainImagesLength;
+    VkImageView *swapChainImageViews;
+    uint32_t swapChainImageLength;
     VkFormat swapChainImageFormat;
     VkExtent2D swapChainExtent;
 
@@ -73,6 +74,7 @@ typedef struct {
     VkResult ( *PickPhysicalDevice )( void );
     VkResult ( *CreateLogicalDevice )( void );
     VkResult ( *CreateSwapChain )( void );
+    VkResult ( *CreateImageViews )( void );
     
     void ( *ClearFeatures )( VkPhysicalDeviceFeatures* );
     void ( *GetDriverVersion )( char*, uint32_t, uint32_t );

@@ -20,6 +20,7 @@ SwapChainSupportDetails QuerySwapChainSupport( VkPhysicalDevice );
 VkSurfaceFormatKHR ChooseSwapSurfaceFormat( const VkSurfaceFormatKHR*, uint32_t );
 VkPresentModeKHR ChooseSwapPresentMode( const VkPresentModeKHR*, uint32_t );
 VkExtent2D ChooseSwapExtent( const VkSurfaceCapabilitiesKHR );
+VkResult CreateImageViews( void );
 
 /* APP */
 AppProperties app = { 
@@ -36,7 +37,7 @@ AppProperties app = {
     .vkPhysicalDevice = VK_NULL_HANDLE,
     
     .swapChainImages = NULL,
-    .swapChainImagesLength = 0,
+    .swapChainImageLength = 0,
 
     .Run = Run,
     .InitWindow = InitWindow,
@@ -49,6 +50,7 @@ AppProperties app = {
     .PickPhysicalDevice = PickPhysicalDevice,
     .CreateLogicalDevice = CreateLogicalDevice,
     .CreateSwapChain = CreateSwapChain,
+    .CreateImageViews = CreateImageViews,
 
     .ClearFeatures = ClearFeatures,
     .GetDriverVersion = GetDriverVersion,
@@ -109,6 +111,12 @@ void Cleanup() {
     glfwTerminate();
 
     if ( app.swapChainImages ) free( app.swapChainImages );
+    if ( app.swapChainImageViews ) {
+        for ( int i = 0; i < app.swapChainImageLength; i++ ) {
+            vkDestroyImageView( app.vkDevice, app.swapChainImageViews[ i ], NULL );
+        }
+        free( app.swapChainImageViews );
+    }
 
     ok( "Cleanup" );
 }
@@ -342,14 +350,14 @@ VkResult CreateSwapChain() {
         return result;
     }
     
-    result = vkGetSwapchainImagesKHR( app.vkDevice, app.vkSwapchainKHR, &app.swapChainImagesLength, NULL );
+    result = vkGetSwapchainImagesKHR( app.vkDevice, app.vkSwapchainKHR, &app.swapChainImageLength, NULL );
     if ( result != VK_SUCCESS ) {
         fail( "CreateSwapChain", "vkGetSwapchainImagesKHR\n", NULL );
         return result;
     }
 
     app.swapChainImages = ( VkImage* )calloc( imageCount, sizeof( VkImage ) );
-    result = vkGetSwapchainImagesKHR( app.vkDevice, app.vkSwapchainKHR, &app.swapChainImagesLength, app.swapChainImages );
+    result = vkGetSwapchainImagesKHR( app.vkDevice, app.vkSwapchainKHR, &app.swapChainImageLength, app.swapChainImages );
     if ( result != VK_SUCCESS ) {
         fail( "CreateSwapChain", "vkGetSwapchainImagesKHR\n", NULL );
         return result;
@@ -360,6 +368,29 @@ VkResult CreateSwapChain() {
 
     ok( "CreateSwapChain" );
     return VK_SUCCESS;
+}
+VkResult CreateImageViews() {
+    entry( "CreateImageViews" );
+
+    app.swapChainImageViews = ( VkImageView* )calloc( app.swapChainImageLength, sizeof( VkImageView ) );
+
+    for ( int i = 0; i < app.swapChainImageLength; i++ ) {
+        VkImageViewCreateInfo createInfo = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .pNext = NULL,
+            .image = app.swapChainImages[ i ],
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = app.swapChainImageFormat,
+            .components = { 0, 0, 0, 0 },
+            .subresourceRange = { 1, 0, 1, 0, 1 }
+        };
+
+        VkResult result = vkCreateImageView( app.vkDevice, &createInfo, NULL, &app.swapChainImageViews[ i ] );
+        if ( result != VK_SUCCESS ) {
+            fail( "CreateImageViews", "failed create image view on index %d\n", i );
+            return result;
+        } 
+    }
 }
 
 /* METHODS */
