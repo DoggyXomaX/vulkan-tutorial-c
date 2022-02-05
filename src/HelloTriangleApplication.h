@@ -14,8 +14,12 @@
     #include <stdbool.h>
 #endif
 
-#define debug_entry(x) puts(":::: "x" ::::")
-#define debug_method(x) puts("\t>>>> "x)
+#define entry(x) puts("[Entry]: "x" {")
+#define ok(x) puts("} // "x)
+#define fail(x,err,params) printf("[Error]: "err"\n} // "x, params)
+#define method(x) puts("\t[Method]: "x" {")
+#define ok_method(x) puts("\t} // "x)
+#define fail_method(x,err,params) printf("\t[Error]: "err"\n} // "x, params)
 
 typedef struct {
     bool isSet;
@@ -27,6 +31,14 @@ typedef struct {
     FamilyIndex graphicsFamily;
     FamilyIndex presentationFamily;
 } QueueFamilyIndices;
+
+typedef struct {
+    VkSurfaceCapabilitiesKHR capabilities;
+    VkSurfaceFormatKHR *formats;
+    uint32_t formatsLength;
+    VkPresentModeKHR *presentModes;
+    uint32_t presentModesLength;
+} SwapChainSupportDetails;
 
 #define DEVICE_EXTENSION_COUNT 1
 
@@ -60,6 +72,7 @@ typedef struct {
     bool ( *IsDeviceSuitable )( VkPhysicalDevice );
     bool ( *CheckDeviceExtensionSupport )( VkPhysicalDevice );
     QueueFamilyIndices ( *FindQueueFamilies )( VkPhysicalDevice );
+    SwapChainSupportDetails ( *QuerySwapChainSupport )( VkPhysicalDevice );
 } AppProperties;
 
 extern AppProperties app;

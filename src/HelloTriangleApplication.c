@@ -14,6 +14,7 @@ void GetDriverVersion( char*, uint32_t, uint32_t );
 bool IsDeviceSuitable( VkPhysicalDevice );
 bool CheckDeviceExtensionSupport( VkPhysicalDevice );
 QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice );
+SwapChainSupportDetails QuerySwapChainSupport( VkPhysicalDevice );
 
 AppProperties app = { 
     .width = 400,
@@ -41,25 +42,27 @@ AppProperties app = {
     .GetDriverVersion = GetDriverVersion,
     .IsDeviceSuitable = IsDeviceSuitable,
     .CheckDeviceExtensionSupport = CheckDeviceExtensionSupport,
-    .FindQueueFamilies = FindQueueFamilies
+    .FindQueueFamilies = FindQueueFamilies,
+    .QuerySwapChainSupport = QuerySwapChainSupport
 };
 
 void Run( void ) {
-    debug_entry( "Run" );
+    entry( "Run" );
 
     app.InitWindow();
 
     VkResult result = app.InitVulkan();
     if ( result != VK_SUCCESS ) {
-        printf( "Vulkan Error code: %d\n", result );
+        fail( "Run", "Vulkan Error %d\n", result );
     } else {
         app.MainLoop();
+        ok( "Run" );
     }
 
     app.Cleanup();
 }
 void InitWindow() {
-    debug_entry( "InitWindow" );
+    entry( "InitWindow" );
 
     glfwInit();
 
@@ -67,54 +70,61 @@ void InitWindow() {
     glfwWindowHint( GLFW_RESIZABLE, GLFW_FALSE );
 
     app.window = glfwCreateWindow( app.width, app.height, app.title, NULL, NULL );
+
+    ok( "InitWindow" );
 }
 void MainLoop() {
-    debug_entry( "MainLoop" );
+    entry( "MainLoop" );
 
     while ( !glfwWindowShouldClose( app.window ) ) {
         glfwPollEvents();
     }
+
+    ok( "MainLoop" );
 }
 void Cleanup() {
-    debug_entry( "Cleanup" );
+    entry( "Cleanup" );
 
     vkDestroyDevice( app.vkDevice, NULL );
     vkDestroySurfaceKHR( app.vkInstance, app.vkSurfaceKHR, NULL );
     vkDestroyInstance( app.vkInstance, NULL );
     glfwDestroyWindow( app.window );
     glfwTerminate();
+
+    ok( "Cleanup" );
 }
 VkResult InitVulkan() {
-    debug_entry( "InitVulkan" );
+    entry( "InitVulkan" );
 
     VkResult result = app.CreateVulkanInstance();
     if ( result != VK_SUCCESS ) {
-        puts( "Error: failed to create vulkan instance!" );
+        fail( "InitVulkan", "failed to create vulkan instance!\n", NULL );
         return result;
     }
 
     result = app.CreateSurface();
     if ( result != VK_SUCCESS ) {
-        puts( "Error: failed to create window surface!" );
+        fail( "InitVulkan", "failed to create window surface!\n", NULL );
         return result;
     }
 
     result = app.PickPhysicalDevice();
     if ( result != VK_SUCCESS ) {
-        puts( "Error: failed to pick physical device!" );
+        fail( "InitVulkan", "failed to pick physical device!\n", NULL );
         return result;
     }
 
     result = app.CreateLogicalDevice();
     if ( result != VK_SUCCESS ) {
-        puts( "Error: failed to create logical device!" );
+        fail( "InitVulkan", "failed to create logical device!\n", NULL );
         return result;
     }
 
+    ok( "InitVulkan" );
     return result;
 }
 VkResult CreateVulkanInstance() {
-    debug_entry( "CreateVulkanInstance" );
+    entry( "CreateVulkanInstance" );
 
     VkApplicationInfo appInfo = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -155,10 +165,14 @@ VkResult CreateVulkanInstance() {
         );
     }
 
+    ok( "CreateVulkanInstance" );
+
     return vkCreateInstance( &createInfo, NULL, &app.vkInstance );
 }
 VkResult CreateSurface() {
-    debug_entry( "CreateSurface" );
+    entry( "CreateSurface" );
+
+    ok( "CreateSurface" );
 
     return glfwCreateWindowSurface(
         app.vkInstance,
@@ -168,12 +182,12 @@ VkResult CreateSurface() {
     );
 }
 VkResult PickPhysicalDevice() {
-    debug_entry( "PickPhysicalDevice" );
+    entry( "PickPhysicalDevice" );
 
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices( app.vkInstance, &deviceCount, NULL );
     if ( deviceCount == 0 ) {
-        puts( "Error: No Graphical Devices was found!" );
+        fail( "PickPhysicalDevice", "No Graphical Devices was found!\n", NULL );
         return VK_ERROR_DEVICE_LOST;
     }
     VkPhysicalDevice devices[ deviceCount ];
@@ -190,14 +204,15 @@ VkResult PickPhysicalDevice() {
     }
 
     if ( isNotSupported ) {
-        puts( "Error: no supported Graphical Devices was found!" );
+        fail( "PickPhysicalDevice", "no supported Graphical Devices was found!\n", NULL );
         return VK_ERROR_DEVICE_LOST;
     }
 
+    ok( "PickPhysicalDevice" );
     return VK_SUCCESS;
 }
 VkResult CreateLogicalDevice() {
-    debug_entry( "CreateLogicalDevice" );
+    entry( "CreateLogicalDevice" );
 
     QueueFamilyIndices indices = app.FindQueueFamilies( app.vkPhysicalDevice );
     
@@ -220,7 +235,6 @@ VkResult CreateLogicalDevice() {
         queueCreateInfos[ i ] = queueCreateInfo;
     }
     
-
     VkPhysicalDeviceFeatures deviceFeatures;
     app.ClearFeatures( &deviceFeatures );
     
@@ -237,19 +251,28 @@ VkResult CreateLogicalDevice() {
     };
 
     VkResult result = vkCreateDevice( app.vkPhysicalDevice, &createInfo, NULL, &app.vkDevice );
-    if ( result != VK_SUCCESS ) return result;
+    if ( result != VK_SUCCESS ) {
+        fail( "CreateLogicalDevice", "failed to create device %d\n", result );
+        return result;
+    }
 
     vkGetDeviceQueue( app.vkDevice, indices.graphicsFamily.value, 0, &app.vkGraphicsQueue );
     vkGetDeviceQueue( app.vkDevice, indices.presentationFamily.value, 0, &app.vkPresentationQueue );
 
+    ok( "CreateLogicalDevice" );
     return VK_SUCCESS;
 }
 void ClearFeatures( VkPhysicalDeviceFeatures *pFeatures ) {
+    method( "ClearFeatures" );
+
     int length = sizeof( VkPhysicalDeviceFeatures ) / sizeof( VkBool32 );
     VkBool32 *p = ( VkBool32* )pFeatures;
     for ( int i = 0; i < length; i++, p++ ) *p = 0;
+
+    ok_method( "ClearFeatures" );
 }
 void GetDriverVersion( char *output_str, uint32_t vendor_id, uint32_t driver_version ) {
+    method( "GetDriverVersion" );
     // NVIDIA version conventions
     if ( vendor_id == 0x10DE ) {
         sprintf( output_str, "%d.%d.%d.%d",
@@ -258,6 +281,7 @@ void GetDriverVersion( char *output_str, uint32_t vendor_id, uint32_t driver_ver
             ( driver_version >> 6  ) & 0x00FF,
             ( driver_version >> 0  ) & 0x003F
 		);
+        ok_method( "GetDriverVersion" );
         return;
     }
 
@@ -267,6 +291,7 @@ void GetDriverVersion( char *output_str, uint32_t vendor_id, uint32_t driver_ver
             ( driver_version >> 14 ),
             ( driver_version >> 0  ) & 0x3FFF
         );
+        ok_method( "GetDriverVersion" );
         return;
     }
 
@@ -276,25 +301,31 @@ void GetDriverVersion( char *output_str, uint32_t vendor_id, uint32_t driver_ver
         ( driver_version >> 12 ) & 0x03FF,
         ( driver_version >> 0  ) & 0x0FFF
     );
+    ok_method( "GetDriverVersion" );
 }
 bool IsDeviceSuitable( VkPhysicalDevice device ) {
-    debug_method( "IsDeviceSuitable" );
+    method( "IsDeviceSuitable" );
 
     bool isSupported = false;
+    bool isExtensionsSupported = app.CheckDeviceExtensionSupport( device );
+    bool isSwapChainAdequate = false;
 
     QueueFamilyIndices indices = FindQueueFamilies( device );
-
     VkPhysicalDeviceProperties deviceProperties;
     VkPhysicalDeviceFeatures deviceFeatures;
     vkGetPhysicalDeviceProperties( device, &deviceProperties );
     vkGetPhysicalDeviceFeatures( device, &deviceFeatures );
 
+    if ( isExtensionsSupported ) {
+        SwapChainSupportDetails details = app.QuerySwapChainSupport( device );
+        isSwapChainAdequate = details.formatsLength != 0 && details.presentModesLength != 0;
+    }
+
     isSupported = (
-        deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU &&
-        deviceFeatures.geometryShader &&
-        !indices.error && 
-        indices.graphicsFamily.isSet && indices.presentationFamily.isSet &&
-        app.CheckDeviceExtensionSupport( device )
+        deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && deviceFeatures.geometryShader &&
+        !indices.error && indices.graphicsFamily.isSet && indices.presentationFamily.isSet &&
+        isExtensionsSupported &&
+        isSwapChainAdequate
     );
 
     char driverVersion[ 64 ];
@@ -312,9 +343,13 @@ bool IsDeviceSuitable( VkPhysicalDevice device ) {
         deviceFeatures.geometryShader ? "Yes" : "No"
     );
 
+    ok_method( "IsDeviceSuitable" );
+
     return isSupported;
 }
 bool CheckDeviceExtensionSupport( VkPhysicalDevice device ) {
+    method( "CheckDeviceExtensionSupport" );
+
     uint32_t extensionCount;
     vkEnumerateDeviceExtensionProperties( device, NULL, &extensionCount, NULL );
     VkExtensionProperties availableExtensions[ extensionCount ];
@@ -330,13 +365,17 @@ bool CheckDeviceExtensionSupport( VkPhysicalDevice device ) {
                 break;
             }
         }
-        if ( checkedExtensionCount == DEVICE_EXTENSION_COUNT ) return true;
+        if ( checkedExtensionCount == DEVICE_EXTENSION_COUNT ) {
+            ok_method( "CheckDeviceExtensionSupport" );
+            return true;
+        }
     }
 
+    fail_method( "CheckDeviceExtensionSupport", "your gpu not supported required extensions!\n", NULL );
     return false;
 }
 QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice device ) {
-    debug_method( "FindQueueFamilies" );
+    method( "FindQueueFamilies" );
 
     QueueFamilyIndices indices = {
         .error = true,
@@ -375,5 +414,39 @@ QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice device ) {
         }
     }
 
+    ok_method( "FindQueueFamilies" );
+
     return indices;
+}
+SwapChainSupportDetails QuerySwapChainSupport( VkPhysicalDevice device ) {
+    method( "QuerySwapChainSupport" );
+
+    SwapChainSupportDetails details = {
+        .formats = NULL,
+        .formatsLength = 0,
+        .presentModes = NULL,
+        .presentModesLength = 0
+    };
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR( device, app.vkSurfaceKHR, &details.capabilities );
+
+    uint32_t formatCount = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR( device, app.vkSurfaceKHR, &formatCount, NULL );
+    if ( formatCount != 0 ) {
+        VkSurfaceFormatKHR formats[ formatCount ];
+        vkGetPhysicalDeviceSurfaceFormatsKHR( device, app.vkSurfaceKHR, &formatCount, formats );
+        details.formats = formats;
+        details.formatsLength = formatCount;
+    }
+
+    uint32_t presentModeCount = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR( device, app.vkSurfaceKHR, &presentModeCount, NULL );
+    if ( presentModeCount != 0 ) {
+        VkPresentModeKHR presentModes[ presentModeCount ];
+        vkGetPhysicalDeviceSurfacePresentModesKHR( device, app.vkSurfaceKHR, &presentModeCount, presentModes );
+        details.presentModes = presentModes;
+        details.presentModesLength = presentModeCount;
+    }
+
+    ok_method( "QuerySwapChainSupport" );
+    return details;
 }
