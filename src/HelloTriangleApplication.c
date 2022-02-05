@@ -6,6 +6,7 @@ void MainLoop( void );
 void Cleanup( void );
 VkResult InitVulkan( void );
 VkResult CreateVulkanInstance( void );
+VkResult CreateSurface( void );
 VkResult PickPhysicalDevice( void );
 VkResult CreateLogicalDevice( void );
 void ClearFeatures( VkPhysicalDeviceFeatures* );
@@ -26,6 +27,7 @@ AppProperties app = {
     .MainLoop = MainLoop,
     .Cleanup = Cleanup,
     .InitVulkan = InitVulkan,
+    .CreateSurface = CreateSurface,
     .CreateVulkanInstance = CreateVulkanInstance,
     .PickPhysicalDevice = PickPhysicalDevice,
     .CreateLogicalDevice = CreateLogicalDevice,
@@ -70,6 +72,7 @@ void Cleanup() {
     debug_entry( "Cleanup" );
 
     vkDestroyDevice( app.vkDevice, NULL );
+    vkDestroySurfaceKHR( app.vkInstance, app.vkSurfaceKHR, NULL );
     vkDestroyInstance( app.vkInstance, NULL );
     glfwDestroyWindow( app.window );
     glfwTerminate();
@@ -80,6 +83,12 @@ VkResult InitVulkan() {
     VkResult result = app.CreateVulkanInstance();
     if ( result != VK_SUCCESS ) {
         puts( "Error: failed to create vulkan instance!" );
+        return result;
+    }
+
+    result = app.CreateSurface();
+    if ( result != VK_SUCCESS ) {
+        puts( "Error: failed to create window surface!" );
         return result;
     }
 
@@ -140,6 +149,11 @@ VkResult CreateVulkanInstance() {
     }
 
     return vkCreateInstance( &createInfo, NULL, &app.vkInstance );
+}
+VkResult CreateSurface() {
+    debug_entry( "CreateSurface" );
+
+    return glfwCreateWindowSurface( app.vkInstance, app.window, NULL, &app.vkSurfaceKHR );
 }
 VkResult PickPhysicalDevice() {
     debug_entry( "PickPhysicalDevice" );

@@ -1,8 +1,12 @@
 #ifndef __HELLO_TRIANGLE_APPLICATION__
 #define __HELLO_TRIANGLE_APPLICATION__
 
+#define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
 
 #include <stdio.h>
 
@@ -34,6 +38,7 @@ typedef struct {
     VkPhysicalDevice vkPhysicalDevice;
     VkDevice vkDevice;
     VkQueue vkGraphicsQueue;
+    VkSurfaceKHR vkSurfaceKHR;
 
     void ( *Run )( void );
     void ( *InitWindow )( void );
@@ -41,6 +46,7 @@ typedef struct {
     void ( *Cleanup )( void );
     VkResult ( *InitVulkan )( void );
     VkResult ( *CreateVulkanInstance )( void );
+    VkResult ( *CreateSurface )( void );
     VkResult ( *PickPhysicalDevice )( void );
     VkResult ( *CreateLogicalDevice )( void );
     void ( *ClearFeatures )( VkPhysicalDeviceFeatures* );
