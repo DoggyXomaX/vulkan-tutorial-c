@@ -4,17 +4,23 @@ void Run( void );
 void InitWindow( void );
 void MainLoop( void );
 void Cleanup( void );
+
 VkResult InitVulkan( void );
 VkResult CreateVulkanInstance( void );
 VkResult CreateSurface( void );
 VkResult PickPhysicalDevice( void );
 VkResult CreateLogicalDevice( void );
+VkResult CreateSwapChain( void );
+
 void ClearFeatures( VkPhysicalDeviceFeatures* );
 void GetDriverVersion( char*, uint32_t, uint32_t );
 bool IsDeviceSuitable( VkPhysicalDevice );
 bool CheckDeviceExtensionSupport( VkPhysicalDevice );
 QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice );
 SwapChainSupportDetails QuerySwapChainSupport( VkPhysicalDevice );
+VkSurfaceFormatKHR ChooseSwapSurfaceFormat( const VkSurfaceFormatKHR*, uint32_t );
+VkPresentModeKHR ChooseSwapPresentMode( const VkPresentModeKHR*, uint32_t );
+VkExtent2D ChooseSwapExtent( const VkSurfaceCapabilitiesKHR );
 
 AppProperties app = { 
     .width = 400,
@@ -29,21 +35,30 @@ AppProperties app = {
     .window = NULL,
     .vkPhysicalDevice = VK_NULL_HANDLE,
 
+    // Entries
     .Run = Run,
     .InitWindow = InitWindow,
     .MainLoop = MainLoop,
     .Cleanup = Cleanup,
+
+    // Vulkan entries
     .InitVulkan = InitVulkan,
     .CreateSurface = CreateSurface,
     .CreateVulkanInstance = CreateVulkanInstance,
     .PickPhysicalDevice = PickPhysicalDevice,
     .CreateLogicalDevice = CreateLogicalDevice,
+    .CreateSwapChain = CreateSwapChain,
+
+    // Methods
     .ClearFeatures = ClearFeatures,
     .GetDriverVersion = GetDriverVersion,
     .IsDeviceSuitable = IsDeviceSuitable,
     .CheckDeviceExtensionSupport = CheckDeviceExtensionSupport,
     .FindQueueFamilies = FindQueueFamilies,
-    .QuerySwapChainSupport = QuerySwapChainSupport
+    .QuerySwapChainSupport = QuerySwapChainSupport,
+    .ChooseSwapSurfaceFormat = ChooseSwapSurfaceFormat,
+    .ChooseSwapPresentMode = ChooseSwapPresentMode,
+    .ChooseSwapExtent = ChooseSwapExtent
 };
 
 void Run( void ) {
@@ -85,6 +100,7 @@ void MainLoop() {
 void Cleanup() {
     entry( "Cleanup" );
 
+    vkDestroySwapchainKHR( app.vkDevice, app.vkSwapchainKHR, NULL );
     vkDestroyDevice( app.vkDevice, NULL );
     vkDestroySurfaceKHR( app.vkInstance, app.vkSurfaceKHR, NULL );
     vkDestroyInstance( app.vkInstance, NULL );
@@ -93,6 +109,7 @@ void Cleanup() {
 
     ok( "Cleanup" );
 }
+
 VkResult InitVulkan() {
     entry( "InitVulkan" );
 
@@ -117,6 +134,12 @@ VkResult InitVulkan() {
     result = app.CreateLogicalDevice();
     if ( result != VK_SUCCESS ) {
         fail( "InitVulkan", "failed to create logical device!\n", NULL );
+        return result;
+    }
+
+    result = app.CreateSwapChain();
+    if ( result != VK_SUCCESS ) {
+        fail( "InitVulkan", "failed to create swap chain!\n", NULL );
         return result;
     }
 
@@ -262,6 +285,57 @@ VkResult CreateLogicalDevice() {
     ok( "CreateLogicalDevice" );
     return VK_SUCCESS;
 }
+VkResult CreateSwapChain() {
+    entry( "CreateSwapChain" );
+
+    SwapChainSupportDetails details = app.QuerySwapChainSupport( app.vkPhysicalDevice );
+
+    VkSurfaceFormatKHR surfaceFormat = app.ChooseSwapSurfaceFormat( details.formats, details.formatsLength );
+    VkPresentModeKHR presentMode = app.ChooseSwapPresentMode( details.presentModes, details.presentModesLength );
+    VkExtent2D extent = app.ChooseSwapExtent( details.capabilities );
+
+    free( details.formats );
+    free( details.presentModes );
+
+    uint32_t imageCount = details.capabilities.minImageCount + 1;
+    if ( details.capabilities.maxImageCount > 0 && imageCount > details.capabilities.maxImageCount ) {
+        imageCount = details.capabilities.maxImageCount;
+    }
+
+    VkSwapchainCreateInfoKHR createInfo = {
+        .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .pNext = NULL,
+        .surface = app.vkSurfaceKHR,
+
+        .minImageCount = imageCount,
+        .imageFormat = surfaceFormat.format,
+        .imageColorSpace = surfaceFormat.colorSpace,
+        .imageExtent = extent,
+        .imageArrayLayers = 1,
+        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        
+        .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .queueFamilyIndexCount = 0,
+        .pQueueFamilyIndices = NULL,
+
+        .preTransform = details.capabilities.currentTransform,
+        .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        .presentMode = presentMode,
+        .clipped = VK_TRUE,
+        .oldSwapchain = VK_NULL_HANDLE
+    };
+    QueueFamilyIndices indices = app.FindQueueFamilies( app.vkPhysicalDevice );
+    if ( indices.graphicsFamily.value != indices.presentationFamily.value ) {
+        uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value, indices.presentationFamily.value };
+        createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        createInfo.queueFamilyIndexCount = 2;
+        createInfo.pQueueFamilyIndices = queueFamilyIndices;
+    }
+
+    ok( "CreateSwapChain" );
+    return vkCreateSwapchainKHR( app.vkDevice, &createInfo, NULL, &app.vkSwapchainKHR );
+}
+
 void ClearFeatures( VkPhysicalDeviceFeatures *pFeatures ) {
     method( "ClearFeatures" );
 
@@ -432,7 +506,7 @@ SwapChainSupportDetails QuerySwapChainSupport( VkPhysicalDevice device ) {
     uint32_t formatCount = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR( device, app.vkSurfaceKHR, &formatCount, NULL );
     if ( formatCount != 0 ) {
-        VkSurfaceFormatKHR formats[ formatCount ];
+        VkSurfaceFormatKHR *formats = ( VkSurfaceFormatKHR* )calloc( formatCount, sizeof( VkSurfaceFormatKHR ) );
         vkGetPhysicalDeviceSurfaceFormatsKHR( device, app.vkSurfaceKHR, &formatCount, formats );
         details.formats = formats;
         details.formatsLength = formatCount;
@@ -441,7 +515,7 @@ SwapChainSupportDetails QuerySwapChainSupport( VkPhysicalDevice device ) {
     uint32_t presentModeCount = 0;
     vkGetPhysicalDeviceSurfacePresentModesKHR( device, app.vkSurfaceKHR, &presentModeCount, NULL );
     if ( presentModeCount != 0 ) {
-        VkPresentModeKHR presentModes[ presentModeCount ];
+        VkPresentModeKHR *presentModes = ( VkPresentModeKHR* )calloc( presentModeCount, sizeof( VkPresentModeKHR ) );
         vkGetPhysicalDeviceSurfacePresentModesKHR( device, app.vkSurfaceKHR, &presentModeCount, presentModes );
         details.presentModes = presentModes;
         details.presentModesLength = presentModeCount;
@@ -449,4 +523,62 @@ SwapChainSupportDetails QuerySwapChainSupport( VkPhysicalDevice device ) {
 
     ok_method( "QuerySwapChainSupport" );
     return details;
+}
+VkSurfaceFormatKHR ChooseSwapSurfaceFormat( const VkSurfaceFormatKHR* formats, uint32_t formatCount ) {
+    method( "ChooseSwapSurfaceFormat" );
+
+    int selected = -1;
+    for ( int i = 0; i < formatCount; i++ ) {
+        printf( "\t\t" );
+        if ( selected == -1 &&
+             formats[ i ].format == VK_FORMAT_B8G8R8A8_SRGB &&
+             formats[ i ].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR ) {
+            printf( "> " );
+            selected = i;
+        }
+        printf( "Format: %u, ColorSpace: %u\n", formats[ i ].format, formats[ i ].colorSpace );
+    }
+
+    ok_method( "ChooseSwapSurfaceFormat" );
+    return formats[ selected == -1 ? 0 : selected ];
+}
+VkPresentModeKHR ChooseSwapPresentMode( const VkPresentModeKHR *presentModes, uint32_t presentModeCount ) {
+    method( "ChooseSwapPresentMode" );
+
+    int selected = -1;
+    for ( int i = 0; i < presentModeCount; i++ ) {
+        printf( "\t\t" );
+        if ( selected == -1 && presentModes[ i ] == VK_PRESENT_MODE_FIFO_KHR ) {
+            selected = i;
+            printf( "> " );
+        }
+        printf( "Present: %u\n", presentModes[ i ] );
+    }
+
+    ok_method( "ChooseSwapPresentMode" );
+    return presentModes[ selected == -1 ? 0 : selected ];
+}
+VkExtent2D ChooseSwapExtent( const VkSurfaceCapabilitiesKHR capabilities ) {
+    method( "ChooseSwapExtent" );
+
+    VkExtent2D actualExtent;
+
+    if ( capabilities.currentExtent.width != UINT32_MAX ) {
+        actualExtent = capabilities.currentExtent;
+    } else {
+        int width, height;
+        glfwGetFramebufferSize( app.window, &width, &height );
+
+        uint32_t minWidth = capabilities.minImageExtent.width;
+        uint32_t minHeight = capabilities.minImageExtent.height;
+        uint32_t maxWidth = capabilities.maxImageExtent.width;
+        uint32_t maxHeight = capabilities.maxImageExtent.height;
+        
+        actualExtent.width = clamp( width, minWidth, maxWidth );
+        actualExtent.height = clamp( height, minHeight, maxHeight );
+    }
+
+    printf( "\t\tExtent size: %ux%u\n", actualExtent.width, actualExtent.height );
+    ok_method( "ChooseSwapExtent" );
+    return actualExtent;
 }

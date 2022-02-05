@@ -14,6 +14,8 @@
     #include <stdbool.h>
 #endif
 
+#include "utils.h"
+
 #define entry(x) puts("[Entry]: "x" {")
 #define ok(x) puts("} // "x)
 #define fail(x,err,params) printf("[Error]: "err"\n} // "x, params)
@@ -57,22 +59,29 @@ typedef struct {
     VkQueue vkGraphicsQueue;
     VkQueue vkPresentationQueue;
     VkSurfaceKHR vkSurfaceKHR;
+    VkSwapchainKHR vkSwapchainKHR;
 
     void ( *Run )( void );
     void ( *InitWindow )( void );
     void ( *MainLoop )( void );
     void ( *Cleanup )( void );
+    
     VkResult ( *InitVulkan )( void );
     VkResult ( *CreateVulkanInstance )( void );
     VkResult ( *CreateSurface )( void );
     VkResult ( *PickPhysicalDevice )( void );
     VkResult ( *CreateLogicalDevice )( void );
+    VkResult ( *CreateSwapChain )( void );
+    
     void ( *ClearFeatures )( VkPhysicalDeviceFeatures* );
     void ( *GetDriverVersion )( char*, uint32_t, uint32_t );
     bool ( *IsDeviceSuitable )( VkPhysicalDevice );
     bool ( *CheckDeviceExtensionSupport )( VkPhysicalDevice );
     QueueFamilyIndices ( *FindQueueFamilies )( VkPhysicalDevice );
     SwapChainSupportDetails ( *QuerySwapChainSupport )( VkPhysicalDevice );
+    VkSurfaceFormatKHR ( *ChooseSwapSurfaceFormat )( const VkSurfaceFormatKHR*, uint32_t );
+    VkPresentModeKHR ( *ChooseSwapPresentMode )( const VkPresentModeKHR*, uint32_t );
+    VkExtent2D ( *ChooseSwapExtent )( const VkSurfaceCapabilitiesKHR );
 } AppProperties;
 
 extern AppProperties app;
