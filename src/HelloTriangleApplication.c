@@ -11,6 +11,7 @@ VkResult CreateSurface( void );
 VkResult PickPhysicalDevice( void );
 VkResult CreateLogicalDevice( void );
 VkResult CreateSwapChain( void );
+VkResult CreateGraphicsPipeline( void );
 void ClearFeatures( VkPhysicalDeviceFeatures* );
 void GetDriverVersion( char*, uint32_t, uint32_t );
 bool IsDeviceSuitable( VkPhysicalDevice );
@@ -40,45 +41,24 @@ AppProperties app = {
     .swapChainImageLength = 0,
     .swapChainImageViews = NULL,
 
-    .Run = Run,
-    .InitWindow = InitWindow,
-    .MainLoop = MainLoop,
-    .Cleanup = Cleanup,
-
-    .InitVulkan = InitVulkan,
-    .CreateSurface = CreateSurface,
-    .CreateVulkanInstance = CreateVulkanInstance,
-    .PickPhysicalDevice = PickPhysicalDevice,
-    .CreateLogicalDevice = CreateLogicalDevice,
-    .CreateSwapChain = CreateSwapChain,
-    .CreateImageViews = CreateImageViews,
-
-    .ClearFeatures = ClearFeatures,
-    .GetDriverVersion = GetDriverVersion,
-    .IsDeviceSuitable = IsDeviceSuitable,
-    .CheckDeviceExtensionSupport = CheckDeviceExtensionSupport,
-    .FindQueueFamilies = FindQueueFamilies,
-    .QuerySwapChainSupport = QuerySwapChainSupport,
-    .ChooseSwapSurfaceFormat = ChooseSwapSurfaceFormat,
-    .ChooseSwapPresentMode = ChooseSwapPresentMode,
-    .ChooseSwapExtent = ChooseSwapExtent
+    .Run = Run
 };
 
 /* ENTRIES */
 void Run( void ) {
     entry( "Run" );
 
-    app.InitWindow();
+    InitWindow();
 
-    VkResult result = app.InitVulkan();
+    VkResult result = InitVulkan();
     if ( result != VK_SUCCESS ) {
         fail( "Run", "Vulkan Error %d\n", result );
     } else {
-        app.MainLoop();
+        MainLoop();
         ok( "Run" );
     }
 
-    app.Cleanup();
+    Cleanup();
 }
 void InitWindow() {
     entry( "InitWindow" );
@@ -132,39 +112,45 @@ void Cleanup() {
 VkResult InitVulkan() {
     entry( "InitVulkan" );
 
-    VkResult result = app.CreateVulkanInstance();
+    VkResult result = CreateVulkanInstance();
     if ( result != VK_SUCCESS ) {
         fail( "InitVulkan", "failed to create vulkan instance!\n", NULL );
         return result;
     }
 
-    result = app.CreateSurface();
+    result = CreateSurface();
     if ( result != VK_SUCCESS ) {
         fail( "InitVulkan", "failed to create window surface!\n", NULL );
         return result;
     }
 
-    result = app.PickPhysicalDevice();
+    result = PickPhysicalDevice();
     if ( result != VK_SUCCESS ) {
         fail( "InitVulkan", "failed to pick physical device!\n", NULL );
         return result;
     }
 
-    result = app.CreateLogicalDevice();
+    result = CreateLogicalDevice();
     if ( result != VK_SUCCESS ) {
         fail( "InitVulkan", "failed to create logical device!\n", NULL );
         return result;
     }
 
-    result = app.CreateSwapChain();
+    result = CreateSwapChain();
     if ( result != VK_SUCCESS ) {
         fail( "InitVulkan", "failed to create swap chain!\n", NULL );
         return result;
     }
 
-    result = app.CreateImageViews();
+    result = CreateImageViews();
     if ( result != VK_SUCCESS ) {
         fail( "InitVulkan", "failed to create image views!\n", NULL );
+        return result;
+    }
+
+    result = CreateGraphicsPipeline();
+    if ( result != VK_SUCCESS ) {
+        fail( "InitVulkan", "failed to create graphics pipeline!\n", NULL );
         return result;
     }
 
@@ -244,7 +230,7 @@ VkResult PickPhysicalDevice() {
 
     bool isNotSupported = true;
     for ( int i = 0; i < deviceCount; i++ ) {
-        bool isSupported = app.IsDeviceSuitable( devices[ i ] );
+        bool isSupported = IsDeviceSuitable( devices[ i ] );
         if ( isSupported ) {
             app.vkPhysicalDevice = devices[ i ];
             isNotSupported = false;
@@ -262,7 +248,7 @@ VkResult PickPhysicalDevice() {
 VkResult CreateLogicalDevice() {
     entry( "CreateLogicalDevice" );
 
-    QueueFamilyIndices indices = app.FindQueueFamilies( app.vkPhysicalDevice );
+    QueueFamilyIndices indices = FindQueueFamilies( app.vkPhysicalDevice );
     
     int queueCount = 2;
     VkDeviceQueueCreateInfo queueCreateInfos[ queueCount ];
@@ -284,7 +270,7 @@ VkResult CreateLogicalDevice() {
     }
     
     VkPhysicalDeviceFeatures deviceFeatures;
-    app.ClearFeatures( &deviceFeatures );
+    ClearFeatures( &deviceFeatures );
     
     VkDeviceCreateInfo createInfo = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -313,11 +299,11 @@ VkResult CreateLogicalDevice() {
 VkResult CreateSwapChain() {
     entry( "CreateSwapChain" );
 
-    SwapChainSupportDetails details = app.QuerySwapChainSupport( app.vkPhysicalDevice );
+    SwapChainSupportDetails details = QuerySwapChainSupport( app.vkPhysicalDevice );
 
-    VkSurfaceFormatKHR surfaceFormat = app.ChooseSwapSurfaceFormat( details.formats, details.formatsLength );
-    VkPresentModeKHR presentMode = app.ChooseSwapPresentMode( details.presentModes, details.presentModesLength );
-    VkExtent2D extent = app.ChooseSwapExtent( details.capabilities );
+    VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat( details.formats, details.formatsLength );
+    VkPresentModeKHR presentMode = ChooseSwapPresentMode( details.presentModes, details.presentModesLength );
+    VkExtent2D extent = ChooseSwapExtent( details.capabilities );
 
     free( details.formats );
     free( details.presentModes );
@@ -349,7 +335,7 @@ VkResult CreateSwapChain() {
         .clipped = VK_TRUE,
         .oldSwapchain = VK_NULL_HANDLE
     };
-    QueueFamilyIndices indices = app.FindQueueFamilies( app.vkPhysicalDevice );
+    QueueFamilyIndices indices = FindQueueFamilies( app.vkPhysicalDevice );
     if ( indices.graphicsFamily.value != indices.presentationFamily.value ) {
         uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value, indices.presentationFamily.value };
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
@@ -409,6 +395,12 @@ VkResult CreateImageViews() {
     ok( "CreateImageViews" );
     return VK_SUCCESS;
 }
+VkResult CreateGraphicsPipeline() {
+    entry( "CreateGraphicsPipeline" );
+
+    ok( "CreateGraphicsPipeline" );
+    return VK_SUCCESS;
+}
 
 /* METHODS */
 void ClearFeatures( VkPhysicalDeviceFeatures *pFeatures ) {
@@ -456,7 +448,7 @@ bool IsDeviceSuitable( VkPhysicalDevice device ) {
     method( "IsDeviceSuitable" );
 
     bool isSupported = false;
-    bool isExtensionsSupported = app.CheckDeviceExtensionSupport( device );
+    bool isExtensionsSupported = CheckDeviceExtensionSupport( device );
     bool isSwapChainAdequate = false;
 
     QueueFamilyIndices indices = FindQueueFamilies( device );
@@ -466,7 +458,7 @@ bool IsDeviceSuitable( VkPhysicalDevice device ) {
     vkGetPhysicalDeviceFeatures( device, &deviceFeatures );
 
     if ( isExtensionsSupported ) {
-        SwapChainSupportDetails details = app.QuerySwapChainSupport( device );
+        SwapChainSupportDetails details = QuerySwapChainSupport( device );
         isSwapChainAdequate = details.formatsLength != 0 && details.presentModesLength != 0;
     }
 

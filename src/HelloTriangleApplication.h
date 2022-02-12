@@ -12,12 +12,12 @@
 #include <stdbool.h>
 #include "utils.h"
 
-#define entry(x) puts("[Entry]: "x" {")
-#define ok(x) puts("} // "x)
-#define fail(x,err,params) printf("[Error]: "err"\n} // "x, params)
-#define method(x) puts("\t[Method]: "x" {")
-#define ok_method(x) puts("\t} // "x)
-#define fail_method(x,err,params) printf("\t[Error]: "err"\n} // "x, params)
+#define entry(x) puts("[Entry] "x)
+#define ok(x) puts("~ "x)
+#define fail(x,err,params) printf("[Error] "err"\n~ "x, params)
+#define method(x) puts("\t[Method] "x)
+#define ok_method(x) puts("\t~ "x)
+#define fail_method(x,err,params) printf("\t[Error] "err"\n~ "x, params)
 
 typedef struct {
     bool isSet;
@@ -64,27 +64,6 @@ typedef struct {
     VkExtent2D swapChainExtent;
 
     void ( *Run )( void );
-    void ( *InitWindow )( void );
-    void ( *MainLoop )( void );
-    void ( *Cleanup )( void );
-    
-    VkResult ( *InitVulkan )( void );
-    VkResult ( *CreateVulkanInstance )( void );
-    VkResult ( *CreateSurface )( void );
-    VkResult ( *PickPhysicalDevice )( void );
-    VkResult ( *CreateLogicalDevice )( void );
-    VkResult ( *CreateSwapChain )( void );
-    VkResult ( *CreateImageViews )( void );
-    
-    void ( *ClearFeatures )( VkPhysicalDeviceFeatures* );
-    void ( *GetDriverVersion )( char*, uint32_t, uint32_t );
-    bool ( *IsDeviceSuitable )( VkPhysicalDevice );
-    bool ( *CheckDeviceExtensionSupport )( VkPhysicalDevice );
-    QueueFamilyIndices ( *FindQueueFamilies )( VkPhysicalDevice );
-    SwapChainSupportDetails ( *QuerySwapChainSupport )( VkPhysicalDevice );
-    VkSurfaceFormatKHR ( *ChooseSwapSurfaceFormat )( const VkSurfaceFormatKHR*, uint32_t );
-    VkPresentModeKHR ( *ChooseSwapPresentMode )( const VkPresentModeKHR*, uint32_t );
-    VkExtent2D ( *ChooseSwapExtent )( const VkSurfaceCapabilitiesKHR );
 } AppProperties;
 
 extern AppProperties app;
