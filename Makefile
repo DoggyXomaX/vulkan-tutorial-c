@@ -23,5 +23,9 @@ all: main.c
     $(INPUT) \
     $(LDFLAGS)
 
+shader: shaders/shader.vert shaders/shader.frag
+	glslc src/shaders/shader.vert -o shaders/vert.spv
+	glslc src/shaders/shader.frag -o shaders/frag.spv
+
 run:
 	./bin/vulkan-test.exe

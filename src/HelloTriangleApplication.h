@@ -39,6 +39,7 @@ typedef struct {
 } SwapChainSupportDetails;
 
 #define DEVICE_EXTENSION_COUNT 1
+#define FILE_CHUNK_SIZE 8192
 
 typedef struct {
     int width;

@@ -1,6 +1,6 @@
 #include "HelloTriangleApplication.h"
 
-/* VISIBILITY */
+/* PRIVATE VISIBILITY */
 void Run( void );
 void InitWindow( void );
 void MainLoop( void );
@@ -14,6 +14,7 @@ VkResult CreateSwapChain( void );
 VkResult CreateGraphicsPipeline( void );
 void ClearFeatures( VkPhysicalDeviceFeatures* );
 void GetDriverVersion( char*, uint32_t, uint32_t );
+int LoadFile( const char*, uint8_t**, uint8_t* );
 bool IsDeviceSuitable( VkPhysicalDevice );
 bool CheckDeviceExtensionSupport( VkPhysicalDevice );
 QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice );
@@ -443,6 +444,38 @@ void GetDriverVersion( char *output_str, uint32_t vendor_id, uint32_t driver_ver
         ( driver_version >> 0  ) & 0x0FFF
     );
     ok_method( "GetDriverVersion" );
+}
+int LoadFile( const char *filename, uint8_t **buffer, uint8_t *size ) {
+    entry( "LoadFile" );
+
+    if ( buffer == NULL ) {
+        fail_method( "LoadFile", "output buffer was not specified (NULL)!\n", NULL );
+        return -1;
+    }
+
+    FILE *file = fopen( filename, "rb" );
+    if ( file == NULL ) {
+        fail_method( "LoadFile", "failed to read \"%s\" file!\n", filename );
+        return -1;
+    }
+
+    *buffer = malloc( 0 );
+    int index = 0;
+    int pChunk = 0;
+    int c = 0;
+    while ( ( c = getc( file ) ) != EOF ) {
+        if ( index >= pChunk * FILE_CHUNK_SIZE ) {
+            pChunk++;
+            realloc( *buffer, pChunk * FILE_CHUNK_SIZE );
+        }
+        *buffer[ index++ ] = ( uint8_t )c;
+    }
+
+    realloc( *buffer, index );
+    if ( size != NULL ) *size = index;
+
+    ok_method( "LoadFile" );
+    return 0;
 }
 bool IsDeviceSuitable( VkPhysicalDevice device ) {
     method( "IsDeviceSuitable" );
