@@ -42,6 +42,9 @@ typedef struct {
 #define FILE_CHUNK_SIZE 8192
 
 typedef struct {
+    int argc;
+    char **argv;
+
     int width;
     int height;
     const char *title;
@@ -64,7 +67,7 @@ typedef struct {
     VkFormat swapChainImageFormat;
     VkExtent2D swapChainExtent;
 
-    void ( *Run )( void );
+    void ( *Run )( int, char** );
 } AppProperties;
 
 extern AppProperties app;

@@ -1,7 +1,7 @@
 #include "HelloTriangleApplication.h"
 
 /* PRIVATE VISIBILITY */
-void Run( void );
+void Run( int argc, char *argv[] );
 void InitWindow( void );
 void MainLoop( void );
 void Cleanup( void );
@@ -14,7 +14,7 @@ VkResult CreateSwapChain( void );
 VkResult CreateGraphicsPipeline( void );
 void ClearFeatures( VkPhysicalDeviceFeatures* );
 void GetDriverVersion( char*, uint32_t, uint32_t );
-int LoadFile( const char*, uint8_t**, uint8_t* );
+uint8_t *LoadFile( const char*, uint32_t* );
 bool IsDeviceSuitable( VkPhysicalDevice );
 bool CheckDeviceExtensionSupport( VkPhysicalDevice );
 QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice );
@@ -46,8 +46,12 @@ AppProperties app = {
 };
 
 /* ENTRIES */
-void Run( void ) {
+void Run( int argc, char *argv[] ) {
     entry( "Run" );
+
+    app.argc = argc;
+    app.argv = argv;
+    for ( int i = 0; i < argc; i++ ) printf( "argv[%d]: \"%s\"\n", i, argv[ i ] );
 
     InitWindow();
 
@@ -399,6 +403,38 @@ VkResult CreateImageViews() {
 VkResult CreateGraphicsPipeline() {
     entry( "CreateGraphicsPipeline" );
 
+    const char VERTEX_PATH[] = "shaders/vert.spv";
+    const char FRAGMENT_PATH[] = "shaders/frag.spv";
+    uint8_t *vertexProgram, *fragmentProgram;
+    char *vertexPath, *fragmentPath;
+    uint32_t vertexProgramLength, fragmentProgramLength;
+
+    vertexPath = GetRelativePath( app.argv[ 0 ], VERTEX_PATH, NULL );
+    fragmentPath = GetRelativePath( app.argv[ 0 ], FRAGMENT_PATH, NULL );
+    
+    puts( "Loading vertex shader..." );
+    vertexProgram = LoadFile( vertexPath, &vertexProgramLength );
+
+    puts( "Loading fragment shader..." );
+    fragmentProgram = LoadFile( fragmentPath, &fragmentProgramLength );
+    
+    free( vertexPath );
+    free( fragmentPath );
+
+    if ( vertexProgram == NULL || fragmentProgram == NULL ) {
+        if ( vertexProgram != NULL ) free( vertexProgram );
+        if ( fragmentProgram != NULL ) free( fragmentProgram );
+        if ( vertexProgram == NULL )
+            fail( "CreateGraphicsPipeline", "failed to load vertex shader \"%s\"!\n", VERTEX_PATH );
+        else
+            fail( "CreateGraphicsPipeline", "failed to load fragment shader \"%s\"!\n", FRAGMENT_PATH );
+        return VK_ERROR_UNKNOWN;
+    }
+
+    // do something
+
+    free( vertexProgram );
+    free( fragmentProgram );
     ok( "CreateGraphicsPipeline" );
     return VK_SUCCESS;
 }
@@ -445,37 +481,32 @@ void GetDriverVersion( char *output_str, uint32_t vendor_id, uint32_t driver_ver
     );
     ok_method( "GetDriverVersion" );
 }
-int LoadFile( const char *filename, uint8_t **buffer, uint8_t *size ) {
-    entry( "LoadFile" );
-
-    if ( buffer == NULL ) {
-        fail_method( "LoadFile", "output buffer was not specified (NULL)!\n", NULL );
-        return -1;
-    }
+uint8_t *LoadFile( const char *filename, uint32_t *size ) {
+    method( "LoadFile" );
 
     FILE *file = fopen( filename, "rb" );
     if ( file == NULL ) {
         fail_method( "LoadFile", "failed to read \"%s\" file!\n", filename );
-        return -1;
+        return NULL;
     }
 
-    *buffer = malloc( 0 );
-    int index = 0;
-    int pChunk = 0;
+    uint8_t *fileBuffer = NULL;
+    uint32_t index = 0;
+    uint32_t pChunk = 0;
     int c = 0;
     while ( ( c = getc( file ) ) != EOF ) {
         if ( index >= pChunk * FILE_CHUNK_SIZE ) {
             pChunk++;
-            realloc( *buffer, pChunk * FILE_CHUNK_SIZE );
+            fileBuffer = realloc( fileBuffer, pChunk * FILE_CHUNK_SIZE );
         }
-        *buffer[ index++ ] = ( uint8_t )c;
+        fileBuffer[ index++ ] = ( uint8_t )c;
     }
 
-    realloc( *buffer, index );
     if ( size != NULL ) *size = index;
+    fileBuffer = realloc( fileBuffer, index );
 
     ok_method( "LoadFile" );
-    return 0;
+    return fileBuffer;
 }
 bool IsDeviceSuitable( VkPhysicalDevice device ) {
     method( "IsDeviceSuitable" );

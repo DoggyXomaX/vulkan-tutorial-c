@@ -1,7 +1,7 @@
 #include "src/HelloTriangleApplication.h"
 
-int main() {
-    app.Run();
+int main( int argc, char *argv[] ) {
+    app.Run( argc, argv );
 
     return 0;
 }

@@ -1,4 +1,4 @@
-CFLAGS = -g -m64 -O2 -std=c11
+CFLAGS = -g3 -m64 -O2 -std=c11
 OUTPUT = -o bin/vulkan-test.exe
 
 INPUT = \
@@ -24,8 +24,8 @@ all: main.c
     $(LDFLAGS)
 
 shader: shaders/shader.vert shaders/shader.frag
-	glslc src/shaders/shader.vert -o shaders/vert.spv
-	glslc src/shaders/shader.frag -o shaders/frag.spv
+	glslc src/shaders/shader.vert -o bin/shaders/vert.spv
+	glslc src/shaders/shader.frag -o bin/shaders/frag.spv
 
 run:
 	./bin/vulkan-test.exe
