@@ -445,7 +445,24 @@ VkResult CreateGraphicsPipeline() {
         return VK_ERROR_UNKNOWN;
     }
 
-    
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .stage = VK_SHADER_STAGE_VERTEX_BIT,
+        .pNext = NULL,
+        .module = vertShaderModule,
+        .pName = "main"
+    };
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .stage = VK_SHADER_STAGE_VERTEX_BIT,
+        .pNext = NULL,
+        .module = fragShaderModule,
+        .pName = "main"
+    };
+    VkPipelineShaderStageCreateInfo shaderStages[] = {
+        vertShaderStageInfo,
+        fragShaderStageInfo
+    };
 
     vkDestroyShaderModule( app.vkDevice, vertShaderModule, NULL );
     vkDestroyShaderModule( app.vkDevice, fragShaderModule, NULL );
