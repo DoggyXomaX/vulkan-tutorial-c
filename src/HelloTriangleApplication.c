@@ -14,7 +14,9 @@ VkResult CreateSwapChain( void );
 VkResult CreateGraphicsPipeline( void );
 void ClearFeatures( VkPhysicalDeviceFeatures* );
 void GetDriverVersion( char*, uint32_t, uint32_t );
-uint8_t *LoadFile( const char*, uint32_t* );
+void *LoadFile( const char*, uint32_t*, uint8_t );
+#define LoadFile8( filename, size ) LoadFile( filename, size, 1 )
+#define LoadFile32( filename, size ) LoadFile( filename, size, 4 )
 bool IsDeviceSuitable( VkPhysicalDevice );
 bool CheckDeviceExtensionSupport( VkPhysicalDevice );
 QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice );
@@ -23,6 +25,7 @@ VkSurfaceFormatKHR ChooseSwapSurfaceFormat( const VkSurfaceFormatKHR*, uint32_t 
 VkPresentModeKHR ChooseSwapPresentMode( const VkPresentModeKHR*, uint32_t );
 VkExtent2D ChooseSwapExtent( const VkSurfaceCapabilitiesKHR );
 VkResult CreateImageViews( void );
+VkShaderModule CreateShaderModule( uint8_t*, uint32_t );
 
 /* APP */
 AppProperties app = { 
@@ -403,38 +406,49 @@ VkResult CreateImageViews() {
 VkResult CreateGraphicsPipeline() {
     entry( "CreateGraphicsPipeline" );
 
-    const char VERTEX_PATH[] = "shaders/vert.spv";
-    const char FRAGMENT_PATH[] = "shaders/frag.spv";
-    uint8_t *vertexProgram, *fragmentProgram;
-    char *vertexPath, *fragmentPath;
-    uint32_t vertexProgramLength, fragmentProgramLength;
+    const char VERT_PATH[] = "shaders/vert.spv";
+    const char FRAG_PATH[] = "shaders/frag.spv";
+    char *vertPath, *fragPath;
+    uint8_t *vertProgram, *fragProgram;
+    uint32_t vertProgramLength, fragProgramLength;
 
-    vertexPath = GetRelativePath( app.argv[ 0 ], VERTEX_PATH, NULL );
-    fragmentPath = GetRelativePath( app.argv[ 0 ], FRAGMENT_PATH, NULL );
-    
+    vertPath = GetRelativePath( app.argv[ 0 ], VERT_PATH, NULL );
+    fragPath = GetRelativePath( app.argv[ 0 ], FRAG_PATH, NULL );
     puts( "Loading vertex shader..." );
-    vertexProgram = LoadFile( vertexPath, &vertexProgramLength );
-
+    vertProgram = LoadFile8( vertPath, &vertProgramLength );
     puts( "Loading fragment shader..." );
-    fragmentProgram = LoadFile( fragmentPath, &fragmentProgramLength );
-    
-    free( vertexPath );
-    free( fragmentPath );
+    fragProgram = LoadFile8( fragPath, &fragProgramLength );
+    free( vertPath );
+    free( fragPath );
 
-    if ( vertexProgram == NULL || fragmentProgram == NULL ) {
-        if ( vertexProgram != NULL ) free( vertexProgram );
-        if ( fragmentProgram != NULL ) free( fragmentProgram );
-        if ( vertexProgram == NULL )
-            fail( "CreateGraphicsPipeline", "failed to load vertex shader \"%s\"!\n", VERTEX_PATH );
-        else
-            fail( "CreateGraphicsPipeline", "failed to load fragment shader \"%s\"!\n", FRAGMENT_PATH );
+    if ( vertProgram == NULL || fragProgram == NULL ) {
+        if ( vertProgram == NULL )
+            fail( "CreateGraphicsPipeline", "failed to load vertex shader \"%s\"!\n", VERT_PATH );
+        if ( fragProgram == NULL )
+            fail( "CreateGraphicsPipeline", "failed to load fragment shader \"%s\"!\n", FRAG_PATH );
+        if ( vertProgram != NULL ) free( vertProgram );
+        if ( fragProgram != NULL ) free( fragProgram );
         return VK_ERROR_UNKNOWN;
     }
 
-    // do something
+    VkShaderModule vertShaderModule = CreateShaderModule( vertProgram, vertProgramLength );
+    VkShaderModule fragShaderModule = CreateShaderModule( fragProgram, fragProgramLength );
+    free( vertProgram );
+    free( fragProgram );
+    if ( vertShaderModule == NULL || fragShaderModule == NULL ) {
+        if ( vertShaderModule == NULL )
+            fail( "CreateGraphicsPipeline", "failed to create vertex shader module!\n", NULL );
+        if ( fragShaderModule == NULL )
+            fail( "CreateGraphicsPipeline", "failed to create fragment shader module!\n", NULL );
+        if ( vertShaderModule != NULL ) vkDestroyShaderModule( app.vkDevice, vertShaderModule, NULL );
+        if ( fragShaderModule != NULL ) vkDestroyShaderModule( app.vkDevice, fragShaderModule, NULL );
+        return VK_ERROR_UNKNOWN;
+    }
 
-    free( vertexProgram );
-    free( fragmentProgram );
+    
+
+    vkDestroyShaderModule( app.vkDevice, vertShaderModule, NULL );
+    vkDestroyShaderModule( app.vkDevice, fragShaderModule, NULL );
     ok( "CreateGraphicsPipeline" );
     return VK_SUCCESS;
 }
@@ -481,7 +495,7 @@ void GetDriverVersion( char *output_str, uint32_t vendor_id, uint32_t driver_ver
     );
     ok_method( "GetDriverVersion" );
 }
-uint8_t *LoadFile( const char *filename, uint32_t *size ) {
+void *LoadFile( const char *filename, uint32_t *size, uint8_t funcType ) {
     method( "LoadFile" );
 
     FILE *file = fopen( filename, "rb" );
@@ -490,24 +504,30 @@ uint8_t *LoadFile( const char *filename, uint32_t *size ) {
         return NULL;
     }
 
-    uint8_t *fileBuffer = NULL;
     uint32_t index = 0;
     uint32_t pChunk = 0;
     int c = 0;
+    void *fileBuffer = NULL;
     while ( ( c = getc( file ) ) != EOF ) {
         if ( index >= pChunk * FILE_CHUNK_SIZE ) {
             pChunk++;
-            fileBuffer = realloc( fileBuffer, pChunk * FILE_CHUNK_SIZE );
+            fileBuffer = realloc( fileBuffer, pChunk * FILE_CHUNK_SIZE * funcType );
         }
-        fileBuffer[ index++ ] = ( uint8_t )c;
+        if ( funcType == 1 ) {
+            *( ( uint8_t* )fileBuffer + index ) = ( uint8_t )c;
+        } else if ( funcType == 4 ) {
+            *( ( uint32_t* )fileBuffer + index ) = ( uint32_t )c;
+        }
+        index++;
     }
 
-    if ( size != NULL ) *size = index;
-    fileBuffer = realloc( fileBuffer, index );
+    if ( size != NULL ) *size = index * funcType;
+    fileBuffer = realloc( fileBuffer, index * funcType );
 
     ok_method( "LoadFile" );
     return fileBuffer;
 }
+
 bool IsDeviceSuitable( VkPhysicalDevice device ) {
     method( "IsDeviceSuitable" );
 
@@ -712,4 +732,24 @@ VkExtent2D ChooseSwapExtent( const VkSurfaceCapabilitiesKHR capabilities ) {
     printf( "\t\tExtent size: %ux%u\n", actualExtent.width, actualExtent.height );
     ok_method( "ChooseSwapExtent" );
     return actualExtent;
+}
+VkShaderModule CreateShaderModule( uint8_t *shaderCode, uint32_t shaderCodeSize ) {
+    method( "CreateShaderModule" );
+
+    VkShaderModuleCreateInfo createInfo = {
+        .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+        .pNext = NULL,
+        .pCode = ( uint32_t* )shaderCode,
+        .codeSize = shaderCodeSize
+    };
+
+    VkShaderModule shaderModule;
+    VkResult result = vkCreateShaderModule( app.vkDevice, &createInfo, NULL, &shaderModule );
+    if ( result != VK_SUCCESS ) {
+        fail_method( "CreateShaderModule", "failed to create shader module\nError Code: %d\n", result );
+        return NULL;
+    }
+
+    ok_method( "CreateShaderModule" );
+    return shaderModule;
 }
