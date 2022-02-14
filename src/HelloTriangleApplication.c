@@ -14,9 +14,6 @@ VkResult CreateSwapChain( void );
 VkResult CreateGraphicsPipeline( void );
 void ClearFeatures( VkPhysicalDeviceFeatures* );
 void GetDriverVersion( char*, uint32_t, uint32_t );
-void *LoadFile( const char*, uint32_t*, uint8_t );
-#define LoadFile8( filename, size ) LoadFile( filename, size, 1 )
-#define LoadFile32( filename, size ) LoadFile( filename, size, 4 )
 bool IsDeviceSuitable( VkPhysicalDevice );
 bool CheckDeviceExtensionSupport( VkPhysicalDevice );
 QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice );
@@ -26,6 +23,7 @@ VkPresentModeKHR ChooseSwapPresentMode( const VkPresentModeKHR*, uint32_t );
 VkExtent2D ChooseSwapExtent( const VkSurfaceCapabilitiesKHR );
 VkResult CreateImageViews( void );
 VkShaderModule CreateShaderModule( uint8_t*, uint32_t );
+uint8_t *LoadFile( const char*, uint32_t* );
 
 /* APP */
 AppProperties app = { 
@@ -415,9 +413,9 @@ VkResult CreateGraphicsPipeline() {
     vertPath = GetRelativePath( app.argv[ 0 ], VERT_PATH, NULL );
     fragPath = GetRelativePath( app.argv[ 0 ], FRAG_PATH, NULL );
     puts( "Loading vertex shader..." );
-    vertProgram = LoadFile8( vertPath, &vertProgramLength );
+    vertProgram = LoadFile( vertPath, &vertProgramLength );
     puts( "Loading fragment shader..." );
-    fragProgram = LoadFile8( fragPath, &fragProgramLength );
+    fragProgram = LoadFile( fragPath, &fragProgramLength );
     free( vertPath );
     free( fragPath );
 
@@ -463,6 +461,8 @@ VkResult CreateGraphicsPipeline() {
         vertShaderStageInfo,
         fragShaderStageInfo
     };
+
+    
 
     vkDestroyShaderModule( app.vkDevice, vertShaderModule, NULL );
     vkDestroyShaderModule( app.vkDevice, fragShaderModule, NULL );
@@ -512,39 +512,6 @@ void GetDriverVersion( char *output_str, uint32_t vendor_id, uint32_t driver_ver
     );
     ok_method( "GetDriverVersion" );
 }
-void *LoadFile( const char *filename, uint32_t *size, uint8_t funcType ) {
-    method( "LoadFile" );
-
-    FILE *file = fopen( filename, "rb" );
-    if ( file == NULL ) {
-        fail_method( "LoadFile", "failed to read \"%s\" file!\n", filename );
-        return NULL;
-    }
-
-    uint32_t index = 0;
-    uint32_t pChunk = 0;
-    int c = 0;
-    void *fileBuffer = NULL;
-    while ( ( c = getc( file ) ) != EOF ) {
-        if ( index >= pChunk * FILE_CHUNK_SIZE ) {
-            pChunk++;
-            fileBuffer = realloc( fileBuffer, pChunk * FILE_CHUNK_SIZE * funcType );
-        }
-        if ( funcType == 1 ) {
-            *( ( uint8_t* )fileBuffer + index ) = ( uint8_t )c;
-        } else if ( funcType == 4 ) {
-            *( ( uint32_t* )fileBuffer + index ) = ( uint32_t )c;
-        }
-        index++;
-    }
-
-    if ( size != NULL ) *size = index * funcType;
-    fileBuffer = realloc( fileBuffer, index * funcType );
-
-    ok_method( "LoadFile" );
-    return fileBuffer;
-}
-
 bool IsDeviceSuitable( VkPhysicalDevice device ) {
     method( "IsDeviceSuitable" );
 
@@ -769,4 +736,33 @@ VkShaderModule CreateShaderModule( uint8_t *shaderCode, uint32_t shaderCodeSize 
 
     ok_method( "CreateShaderModule" );
     return shaderModule;
+}
+uint8_t *LoadFile( const char *filename, uint32_t *size ) {
+    method( "LoadFile" );
+
+    FILE *file = fopen( filename, "rb" );
+    if ( file == NULL ) {
+        fail_method( "LoadFile", "failed to read \"%s\" file!\n", filename );
+        return NULL;
+    }
+
+    uint32_t index = 0;
+    uint32_t pChunk = 0;
+    int c = 0;
+    uint8_t *fileBuffer = NULL;
+    while ( ( c = getc( file ) ) != EOF ) {
+        if ( index >= pChunk * FILE_CHUNK_SIZE ) {
+            pChunk++;
+            fileBuffer = realloc( fileBuffer, pChunk * FILE_CHUNK_SIZE );
+        }
+        fileBuffer[ index ] = ( uint8_t )c;
+        index++;
+    }
+    fclose(file);
+
+    if ( size != NULL ) *size = index;
+    fileBuffer = realloc( fileBuffer, index );
+
+    ok_method( "LoadFile" );
+    return fileBuffer;
 }

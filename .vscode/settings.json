@@ -1,9 +1,0 @@
-{
-    "files.associations": {
-        "stdio.h": "c",
-        "hellotriangleapplication.h": "c",
-        "glfw3.h": "c",
-        "vulkan.h": "c",
-        "vulkan_core.h": "c"
-    }
-}
