@@ -66,6 +66,8 @@ typedef struct {
     uint32_t swapChainImageLength;
     VkFormat swapChainImageFormat;
     VkExtent2D swapChainExtent;
+
+    VkRenderPass renderPass;
     VkPipelineLayout pipelineLayout;
 
     void ( *Run )( int, char** );

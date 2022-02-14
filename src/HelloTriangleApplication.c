@@ -12,6 +12,7 @@ VkResult PickPhysicalDevice( void );
 VkResult CreateLogicalDevice( void );
 VkResult CreateSwapChain( void );
 VkResult CreateGraphicsPipeline( void );
+VkResult CreateRenderPass( void );
 void ClearFeatures( VkPhysicalDeviceFeatures* );
 void GetDriverVersion( char*, uint32_t, uint32_t );
 bool IsDeviceSuitable( VkPhysicalDevice );
@@ -95,6 +96,11 @@ void Cleanup() {
         vkDestroyPipelineLayout( app.vkDevice, app.pipelineLayout, NULL );
     }
 
+    puts( "Destroying vk render pass..." );
+    if ( app.renderPass != NULL ) {
+        vkDestroyRenderPass( app.vkDevice, app.renderPass, NULL );
+    }
+
     puts( "Cleaning Swap chain image views..." );
     if ( app.swapChainImageViews ) {
         for ( int i = 0; i < app.swapChainImageLength; i++ ) {
@@ -156,6 +162,12 @@ VkResult InitVulkan() {
     result = CreateImageViews();
     if ( result != VK_SUCCESS ) {
         fail( "InitVulkan", "failed to create image views!\n", NULL );
+        return result;
+    }
+
+    result = CreateRenderPass();
+    if ( result != VK_SUCCESS ) {
+        fail( "InitVulkan", "failed to create render pass!\n", NULL );
         return result;
     }
 
@@ -593,6 +605,58 @@ VkResult CreateGraphicsPipeline() {
     vkDestroyShaderModule( app.vkDevice, vertShaderModule, NULL );
     vkDestroyShaderModule( app.vkDevice, fragShaderModule, NULL );
     ok( "CreateGraphicsPipeline" );
+    return VK_SUCCESS;
+}
+VkResult CreateRenderPass() {
+    entry( "CreateRenderPass" );
+
+    VkAttachmentDescription colorAttachment = {
+        .format = app.swapChainImageFormat,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+    };
+
+    VkAttachmentReference colorAttachmentRef = {
+        .attachment = 0,
+        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    };
+
+    VkSubpassDescription subpass = {
+        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &colorAttachmentRef,
+        .pInputAttachments = NULL,
+        .pResolveAttachments = NULL,
+        .pDepthStencilAttachment = NULL,
+        .pPreserveAttachments = NULL
+    };
+
+    VkRenderPassCreateInfo renderPassInfo = {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+        .pNext = NULL,
+        .attachmentCount = 1,
+        .pAttachments = &colorAttachment,
+        .subpassCount = 1,
+        .pSubpasses = &subpass
+    };
+
+    VkResult result = vkCreateRenderPass(
+        app.vkDevice,
+        &renderPassInfo,
+        NULL,
+        &app.renderPass
+    );
+    if ( result != VK_SUCCESS ) {
+        fail( "CreateRenderPass", "failed to create render pass!\nError code: %d\n", result );
+        return result;
+    }
+
+    ok( "CreateRenderPass" );
     return VK_SUCCESS;
 }
 
