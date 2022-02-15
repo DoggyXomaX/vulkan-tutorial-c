@@ -69,6 +69,7 @@ typedef struct {
 
     VkRenderPass renderPass;
     VkPipelineLayout pipelineLayout;
+    VkPipeline graphicsPipeline;
 
     void ( *Run )( int, char** );
 } AppProperties;

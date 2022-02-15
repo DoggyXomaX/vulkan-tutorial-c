@@ -91,7 +91,12 @@ void MainLoop() {
 void Cleanup() {
     entry( "Cleanup" );
 
-    puts( "Destroying vk pipeline..." );
+    puts( "Destroying vk graphics pipeline..." );
+    if ( app.graphicsPipeline != NULL ) {
+        vkDestroyPipeline( app.vkDevice, app.graphicsPipeline, NULL );
+    }
+
+    puts( "Destroying vk pipeline layout..." );
     if ( app.pipelineLayout != NULL ) {
         vkDestroyPipelineLayout( app.vkDevice, app.pipelineLayout, NULL );
     }
@@ -465,14 +470,16 @@ VkResult CreateGraphicsPipeline() {
         .stage = VK_SHADER_STAGE_VERTEX_BIT,
         .pNext = NULL,
         .module = vertShaderModule,
-        .pName = "main"
+        .pName = "main",
+        .pSpecializationInfo = NULL
     };
     VkPipelineShaderStageCreateInfo fragShaderStageInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
         .stage = VK_SHADER_STAGE_VERTEX_BIT,
         .pNext = NULL,
         .module = fragShaderModule,
-        .pName = "main"
+        .pName = "main",
+        .pSpecializationInfo = NULL
     };
     VkPipelineShaderStageCreateInfo shaderStages[] = {
         vertShaderStageInfo,
@@ -506,7 +513,7 @@ VkResult CreateGraphicsPipeline() {
 
     VkRect2D scissor = {
         .offset = { 0, 0 },
-        .extent = app.swapChainExtent  
+        .extent = app.swapChainExtent
     };
 
     VkPipelineViewportStateCreateInfo viewportState = {
@@ -570,18 +577,6 @@ VkResult CreateGraphicsPipeline() {
         .blendConstants = { 0.0f, 0.0f, 0.0f, 0.0f }
     };
 
-    VkDynamicState dynamicStates[] = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_LINE_WIDTH
-    };
-
-    VkPipelineDynamicStateCreateInfo dynamicState = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-        .pNext = NULL,
-        .dynamicStateCount = sizeof( dynamicStates ),
-        .pDynamicStates = dynamicStates
-    };
-
     VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .pNext = NULL,
@@ -598,9 +593,53 @@ VkResult CreateGraphicsPipeline() {
         &app.pipelineLayout
     );
     if ( result != VK_SUCCESS ) {
+        vkDestroyShaderModule( app.vkDevice, vertShaderModule, NULL );
+        vkDestroyShaderModule( app.vkDevice, fragShaderModule, NULL );
         fail( "CreateGraphicsPipeline", "failed to create graphics pipeline.\nError code: %d\n", result );
         return result;
     }
+    puts( "Pipeline layout created!" );
+
+    VkGraphicsPipelineCreateInfo pipelineInfo = {
+        .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+        .pNext = NULL,
+        .stageCount = 2,
+        .pStages = shaderStages,
+        .pVertexInputState = &vertexInputInfo,
+        .pInputAssemblyState = &inputAssembly,
+        .pViewportState = &viewportState,
+        .pRasterizationState = &rasterizer,
+        .pMultisampleState = &multisampling,
+        .pDepthStencilState = NULL,
+        .pColorBlendState = &colorBlending,
+        .pDynamicState = NULL,
+        .pTessellationState = NULL,
+        .layout = app.pipelineLayout,
+        .renderPass = app.renderPass,
+        .subpass = 0,
+        .basePipelineHandle = VK_NULL_HANDLE,
+        .basePipelineIndex = 0
+    };
+
+    for ( int i = 0; i < 2; i++ ) {
+        printf( "Shader stages[%d]: %s\n", i, shaderStages[i].pName );
+    }
+
+    result = vkCreateGraphicsPipelines(
+        app.vkDevice,
+        VK_NULL_HANDLE,
+        1,
+        &pipelineInfo,
+        NULL,
+        &app.graphicsPipeline
+    );
+    if ( result != VK_SUCCESS ) {
+        fail( "CreateGraphicsPipeline", "failed to create graphics pipeline.\nError code: %d\n", result );
+        vkDestroyShaderModule( app.vkDevice, vertShaderModule, NULL );
+        vkDestroyShaderModule( app.vkDevice, fragShaderModule, NULL );
+        return result;
+    }
+    puts( "Pipeline created!" );
 
     vkDestroyShaderModule( app.vkDevice, vertShaderModule, NULL );
     vkDestroyShaderModule( app.vkDevice, fragShaderModule, NULL );
