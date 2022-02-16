@@ -132,6 +132,21 @@ VkResult DrawFrame() {
         return result;
     }
 
+    VkSwapchainKHR swapChains[] = { app.vkSwapchainKHR };
+
+    VkPresentInfoKHR presentInfo = {
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .pNext = NULL,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = signalSemaphores,
+        .swapchainCount = 1,
+        .pSwapchains = swapChains,
+        .pImageIndices = &imageIndex,
+        .pResults = NULL
+    };
+
+    vkQueuePresentKHR( app.vkPresentationQueue, &presentInfo );
+
     return VK_SUCCESS;
 }
 void Cleanup() {
@@ -748,6 +763,15 @@ VkResult CreateRenderPass() {
         .pPreserveAttachments = NULL
     };
 
+    VkSubpassDependency dependency = {
+        .srcSubpass = VK_SUBPASS_EXTERNAL,
+        .dstSubpass = 0,
+        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .srcAccessMask = 0,
+        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+    };
+
     VkRenderPassCreateInfo renderPassInfo = {
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
         .pNext = NULL,
@@ -755,8 +779,8 @@ VkResult CreateRenderPass() {
         .pAttachments = &colorAttachment,
         .subpassCount = 1,
         .pSubpasses = &subpass,
-        .dependencyCount = 0,
-        .pDependencies = NULL
+        .dependencyCount = 1,
+        .pDependencies = &dependency
     };
 
     VkResult result = vkCreateRenderPass(
