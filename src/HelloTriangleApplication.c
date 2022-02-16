@@ -4,6 +4,7 @@
 void Run( int argc, char *argv[] );
 void InitWindow( void );
 void MainLoop( void );
+VkResult DrawFrame( void );
 void Cleanup( void );
 VkResult InitVulkan( void );
 VkResult CreateVulkanInstance( void );
@@ -16,6 +17,7 @@ VkResult CreateRenderPass( void );
 VkResult CreateFramebuffers( void );
 VkResult CreateCommandPool( void );
 VkResult CreateCommandBuffers( void );
+VkResult CreateSemaphores( void );
 void ClearFeatures( VkPhysicalDeviceFeatures* );
 void GetDriverVersion( char*, uint32_t, uint32_t );
 bool IsDeviceSuitable( VkPhysicalDevice );
@@ -93,12 +95,51 @@ void MainLoop() {
 
     while ( !glfwWindowShouldClose( app.window ) ) {
         glfwPollEvents();
+        if ( DrawFrame() != VK_SUCCESS ) break;
     }
 
     ok( "MainLoop" );
 }
+VkResult DrawFrame() {
+    uint32_t imageIndex;
+    vkAcquireNextImageKHR(
+        app.vkDevice,
+        app.vkSwapchainKHR,
+        UINT64_MAX,
+        app.imageAvailableSemaphore,
+        VK_NULL_HANDLE,
+        &imageIndex
+    );
+
+    VkSemaphore waitSemaphores[] = { app.imageAvailableSemaphore };
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    VkSemaphore signalSemaphores[] = { app.renderFinishedSemaphore };
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .pNext = NULL,
+        .pWaitDstStageMask = waitStages,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &app.commandBuffers[ imageIndex ],
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = waitSemaphores,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = signalSemaphores
+    };
+
+    VkResult result = vkQueueSubmit( app.vkGraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE );
+    if ( result != VK_SUCCESS ) {
+        fail( "DrawFrame", "failed to queue submit.\nError code: %d\n", result );
+        return result;
+    }
+
+    return VK_SUCCESS;
+}
 void Cleanup() {
     entry( "Cleanup" );
+
+    puts( "Destroying semaphores" );
+    if ( app.renderFinishedSemaphore ) vkDestroySemaphore( app.vkDevice, app.renderFinishedSemaphore, NULL );
+    if ( app.imageAvailableSemaphore ) vkDestroySemaphore( app.vkDevice, app.imageAvailableSemaphore, NULL );
 
     puts( "Destroying command pool" );
     if ( app.commandPool ) vkDestroyCommandPool( app.vkDevice, app.commandPool, NULL );
@@ -182,6 +223,9 @@ VkResult InitVulkan() {
     if ( result != VK_SUCCESS ) return result;
 
     result = CreateCommandBuffers();
+    if ( result != VK_SUCCESS ) return result;
+
+    result = CreateSemaphores();
     if ( result != VK_SUCCESS ) return result;
 
     ok( "InitVulkan" );
@@ -841,6 +885,29 @@ VkResult CreateCommandBuffers() {
     }
 
     ok( "CreateCommandBuffers" );
+    return VK_SUCCESS;
+}
+VkResult CreateSemaphores() {
+    entry( "CreateSemaphores" );
+
+    VkSemaphoreCreateInfo semaphoreInfo = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        .pNext = NULL
+    };
+
+    VkResult result = vkCreateSemaphore( app.vkDevice, &semaphoreInfo, NULL, &app.imageAvailableSemaphore );
+    if ( result != VK_SUCCESS ) {
+        fail( "CreateSemaphores", "failed to create imageAvailable semaphore!\nError code: %d\n", result );
+        return result;
+    }
+
+    result = vkCreateSemaphore( app.vkDevice, &semaphoreInfo, NULL, &app.renderFinishedSemaphore );
+    if ( result != VK_SUCCESS ) {
+        fail( "CreateSemaphores", "failed to create renderFinished semaphore!\nError code: %d\n", result );
+        return result;
+    }
+
+    ok( "CreateSemaphores" );
     return VK_SUCCESS;
 }
 

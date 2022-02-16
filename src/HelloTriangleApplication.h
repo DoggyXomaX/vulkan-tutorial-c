@@ -83,6 +83,9 @@ typedef struct {
     VkCommandPool commandPool;
     VkCommandBuffer *commandBuffers;
 
+    VkSemaphore imageAvailableSemaphore;
+    VkSemaphore renderFinishedSemaphore;
+
     void ( *Run )( int, char** );
 } AppProperties;
 
