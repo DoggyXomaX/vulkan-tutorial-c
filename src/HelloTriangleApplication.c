@@ -14,6 +14,8 @@ VkResult CreateSwapChain( void );
 VkResult CreateGraphicsPipeline( void );
 VkResult CreateRenderPass( void );
 VkResult CreateFramebuffers( void );
+VkResult CreateCommandPool( void );
+VkResult CreateCommandBuffers( void );
 void ClearFeatures( VkPhysicalDeviceFeatures* );
 void GetDriverVersion( char*, uint32_t, uint32_t );
 bool IsDeviceSuitable( VkPhysicalDevice );
@@ -98,6 +100,9 @@ void MainLoop() {
 void Cleanup() {
     entry( "Cleanup" );
 
+    puts( "Destroying command pool" );
+    if ( app.commandPool ) vkDestroyCommandPool( app.vkDevice, app.commandPool, NULL );
+
     puts( "Destroying vk swap chain framebuffers" );
     if ( app.swapChainFramebuffers ) {
         for ( int i = 0; i < app.swapChainImageLength; i++ ) {
@@ -109,19 +114,13 @@ void Cleanup() {
     }
 
     puts( "Destroying vk graphics pipeline..." );
-    if ( app.graphicsPipeline != NULL ) {
-        vkDestroyPipeline( app.vkDevice, app.graphicsPipeline, NULL );
-    }
+    if ( app.graphicsPipeline ) vkDestroyPipeline( app.vkDevice, app.graphicsPipeline, NULL );
 
     puts( "Destroying vk pipeline layout..." );
-    if ( app.pipelineLayout != NULL ) {
-        vkDestroyPipelineLayout( app.vkDevice, app.pipelineLayout, NULL );
-    }
+    if ( app.pipelineLayout ) vkDestroyPipelineLayout( app.vkDevice, app.pipelineLayout, NULL );
 
     puts( "Destroying vk render pass..." );
-    if ( app.renderPass != NULL ) {
-        vkDestroyRenderPass( app.vkDevice, app.renderPass, NULL );
-    }
+    if ( app.renderPass ) vkDestroyRenderPass( app.vkDevice, app.renderPass, NULL );
 
     puts( "Cleaning Swap chain image views..." );
     if ( app.swapChainImageViews ) {
@@ -132,9 +131,10 @@ void Cleanup() {
     }
 
     puts( "Cleaning Swap chain images..." );
-    if ( app.swapChainImages ) {
-        free( app.swapChainImages );
-    }
+    if ( app.swapChainImages ) free( app.swapChainImages );
+
+    puts( "Cleaning command buffers..." );
+    if ( app.commandBuffers ) free( app.commandBuffers );
 
     puts( "Cleaning Vulkan and glfw..." );
     vkDestroySwapchainKHR( app.vkDevice, app.vkSwapchainKHR, NULL );
@@ -152,58 +152,37 @@ VkResult InitVulkan() {
     entry( "InitVulkan" );
 
     VkResult result = CreateVulkanInstance();
-    if ( result != VK_SUCCESS ) {
-        fail( "InitVulkan", "failed to create vulkan instance!\n", NULL );
-        return result;
-    }
+    if ( result != VK_SUCCESS ) return result;
 
     result = CreateSurface();
-    if ( result != VK_SUCCESS ) {
-        fail( "InitVulkan", "failed to create window surface!\n", NULL );
-        return result;
-    }
+    if ( result != VK_SUCCESS ) return result;
 
     result = PickPhysicalDevice();
-    if ( result != VK_SUCCESS ) {
-        fail( "InitVulkan", "failed to pick physical device!\n", NULL );
-        return result;
-    }
+    if ( result != VK_SUCCESS ) return result;
 
     result = CreateLogicalDevice();
-    if ( result != VK_SUCCESS ) {
-        fail( "InitVulkan", "failed to create logical device!\n", NULL );
-        return result;
-    }
+    if ( result != VK_SUCCESS ) return result;
 
     result = CreateSwapChain();
-    if ( result != VK_SUCCESS ) {
-        fail( "InitVulkan", "failed to create swap chain!\n", NULL );
-        return result;
-    }
+    if ( result != VK_SUCCESS ) return result;
 
     result = CreateImageViews();
-    if ( result != VK_SUCCESS ) {
-        fail( "InitVulkan", "failed to create image views!\n", NULL );
-        return result;
-    }
+    if ( result != VK_SUCCESS ) return result;
 
     result = CreateRenderPass();
-    if ( result != VK_SUCCESS ) {
-        fail( "InitVulkan", "failed to create render pass!\n", NULL );
-        return result;
-    }
+    if ( result != VK_SUCCESS ) return result;
 
     result = CreateGraphicsPipeline();
-    if ( result != VK_SUCCESS ) {
-        fail( "InitVulkan", "failed to create graphics pipeline!\n", NULL );
-        return result;
-    }
+    if ( result != VK_SUCCESS ) return result;
 
     result = CreateFramebuffers();
-    if ( result != VK_SUCCESS ) {
-        fail( "InitVulkan", "failed to create framebuffers!\n", NULL );
-        return result;
-    }
+    if ( result != VK_SUCCESS ) return result;
+
+    result = CreateCommandPool();
+    if ( result != VK_SUCCESS ) return result;
+
+    result = CreateCommandBuffers();
+    if ( result != VK_SUCCESS ) return result;
 
     ok( "InitVulkan" );
     return result;
@@ -778,6 +757,90 @@ VkResult CreateFramebuffers() {
 
     ok( "CreateFramebuffers" );
 
+    return VK_SUCCESS;
+}
+VkResult CreateCommandPool() {
+    entry( "CreateCommandPool" );
+
+    QueueFamilyIndices queueFamilyIndices = FindQueueFamilies( app.vkPhysicalDevice );
+
+    VkCommandPoolCreateInfo poolInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .pNext = NULL,
+        .queueFamilyIndex = queueFamilyIndices.graphicsFamily.value,
+        .flags = 0
+    };
+
+    VkResult result = vkCreateCommandPool( app.vkDevice, &poolInfo, NULL, &app.commandPool );
+    if ( result != VK_SUCCESS ) {
+        fail( "CreateCommandPool", "failed to create command pool.\nError code: %d\n", result );
+        return result;
+    }
+
+    ok( "CreateCommandPool" );
+    return VK_SUCCESS;
+}
+VkResult CreateCommandBuffers() {
+    entry( "CreateCommandBuffers" );
+
+    app.commandBuffers = calloc( app.swapChainImageLength, sizeof( VkCommandBuffer ) );
+
+    VkCommandBufferAllocateInfo allocInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .pNext = NULL,
+        .commandPool = app.commandPool,
+        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = ( uint32_t )app.swapChainImageLength
+    };
+
+    VkResult result = vkAllocateCommandBuffers( app.vkDevice, &allocInfo, app.commandBuffers );
+    if ( result != VK_SUCCESS ) {
+        fail( "CreateCommandBuffers", "failed to allocate command buffers\nError code: %d\n", result );
+        return result;
+    }
+
+    for ( int i = 0; i < app.swapChainImageLength; i++ ) {
+        VkCommandBufferBeginInfo beginInfo = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .pNext = NULL,
+            .flags = 0,
+            .pInheritanceInfo = NULL
+        };
+
+        result = vkBeginCommandBuffer( app.commandBuffers[ i ], &beginInfo );
+        if ( result != VK_SUCCESS ) {
+            fail( "CreateCommandBuffers", "failed to begin command buffer.\nError code: %d\n", result );
+            return result;
+        }
+
+        VkClearValue clearColor = {{{ 0.0f, 0.0f, 0.0f, 1.0f }}};
+
+        VkRenderPassBeginInfo renderPassInfo = {
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            .pNext = NULL,
+            .renderPass = app.renderPass,
+            .framebuffer = app.swapChainFramebuffers[ i ],
+            .renderArea = {
+                .offset = { 0, 0 },
+                .extent = app.swapChainExtent
+            },
+            .clearValueCount = 1,
+            .pClearValues = &clearColor
+        };
+
+        vkCmdBeginRenderPass( app.commandBuffers[ i ], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE );
+        vkCmdBindPipeline( app.commandBuffers[ i ], VK_PIPELINE_BIND_POINT_GRAPHICS, app.graphicsPipeline );
+        vkCmdDraw( app.commandBuffers[ i ], 3, 1, 0, 0 );
+        vkCmdEndRenderPass( app.commandBuffers[ i ] );
+
+        result = vkEndCommandBuffer( app.commandBuffers[ i ] );
+        if ( result != VK_SUCCESS ) {
+            fail( "CreateCommandBuffers", "failed to end up command buffer.\nError code: %d\n", result );
+            return result;
+        }
+    }
+
+    ok( "CreateCommandBuffers" );
     return VK_SUCCESS;
 }
 

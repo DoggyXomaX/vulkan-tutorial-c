@@ -80,6 +80,8 @@ typedef struct {
     VkPipeline graphicsPipeline;
 
     VkFramebuffer *swapChainFramebuffers;
+    VkCommandPool commandPool;
+    VkCommandBuffer *commandBuffers;
 
     void ( *Run )( int, char** );
 } AppProperties;
