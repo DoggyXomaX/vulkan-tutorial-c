@@ -777,6 +777,8 @@ VkResult CreateFramebuffers() {
     }
 
     ok( "CreateFramebuffers" );
+
+    return VK_SUCCESS;
 }
 
 /* METHODS */
@@ -912,12 +914,12 @@ bool CheckValidationLayerSupport() {
         }
 
         if ( !layerFound ) {
-            ok( "CheckValidationLayerSupport not found" );
+            ok_method( "CheckValidationLayerSupport not found" );
             return false;
         }
     }
 
-    ok( "CheckValidationLayerSupport found" );
+    ok_method( "CheckValidationLayerSupport found" );
     return true;
 }
 QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice device ) {
