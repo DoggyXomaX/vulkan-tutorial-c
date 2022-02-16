@@ -23,7 +23,7 @@ all: main.c
     $(INPUT) \
     $(LDFLAGS)
 
-shader: shaders/shader.vert shaders/shader.frag
+shader: src/shaders/shader.vert src/shaders/shader.frag
 	glslc src/shaders/shader.vert -o bin/shaders/vert.spv
 	glslc src/shaders/shader.frag -o bin/shaders/frag.spv
 
