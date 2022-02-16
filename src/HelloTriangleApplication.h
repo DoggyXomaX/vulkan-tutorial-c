@@ -79,6 +79,8 @@ typedef struct {
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
 
+    VkFramebuffer *swapChainFramebuffers;
+
     void ( *Run )( int, char** );
 } AppProperties;
 

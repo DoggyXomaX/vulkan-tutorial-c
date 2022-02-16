@@ -13,6 +13,7 @@ VkResult CreateLogicalDevice( void );
 VkResult CreateSwapChain( void );
 VkResult CreateGraphicsPipeline( void );
 VkResult CreateRenderPass( void );
+VkResult CreateFramebuffers( void );
 void ClearFeatures( VkPhysicalDeviceFeatures* );
 void GetDriverVersion( char*, uint32_t, uint32_t );
 bool IsDeviceSuitable( VkPhysicalDevice );
@@ -96,6 +97,16 @@ void MainLoop() {
 }
 void Cleanup() {
     entry( "Cleanup" );
+
+    puts( "Destroying vk swap chain framebuffers" );
+    if ( app.swapChainFramebuffers ) {
+        for ( int i = 0; i < app.swapChainImageLength; i++ ) {
+            if ( app.swapChainFramebuffers[ i ] ) {
+                vkDestroyFramebuffer( app.vkDevice, app.swapChainFramebuffers[ i ], NULL );
+            }
+        }
+        free( app.swapChainFramebuffers );
+    }
 
     puts( "Destroying vk graphics pipeline..." );
     if ( app.graphicsPipeline != NULL ) {
@@ -185,6 +196,12 @@ VkResult InitVulkan() {
     result = CreateGraphicsPipeline();
     if ( result != VK_SUCCESS ) {
         fail( "InitVulkan", "failed to create graphics pipeline!\n", NULL );
+        return result;
+    }
+
+    result = CreateFramebuffers();
+    if ( result != VK_SUCCESS ) {
+        fail( "InitVulkan", "failed to create framebuffers!\n", NULL );
         return result;
     }
 
@@ -733,6 +750,34 @@ VkResult CreateRenderPass() {
     ok( "CreateRenderPass" );
     return VK_SUCCESS;
 }
+VkResult CreateFramebuffers() {
+    entry( "CreateFramebuffers" );
+
+    app.swapChainFramebuffers = calloc( app.swapChainImageLength, sizeof( VkFramebuffer ) );
+
+    for ( uint32_t i = 0; i < app.swapChainImageLength; i++ ) {
+        VkImageView attachments[] = { app.swapChainImageViews[ i ] };
+
+        VkFramebufferCreateInfo framebufferInfo = {
+            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            .pNext = NULL,
+            .renderPass = app.renderPass,
+            .attachmentCount = 1,
+            .pAttachments = attachments,
+            .width = app.swapChainExtent.width,
+            .height = app.swapChainExtent.height,
+            .layers = 1
+        };
+
+        VkResult result = vkCreateFramebuffer( app.vkDevice, &framebufferInfo, NULL, &app.swapChainFramebuffers[ i ] );
+        if ( result != VK_SUCCESS ) {
+            fail( "CreateFramebuffers", "failed to create framebuffer.\nError code: %d\n", result );
+            return result;
+        }
+    }
+
+    ok( "CreateFramebuffers" );
+}
 
 /* METHODS */
 void ClearFeatures( VkPhysicalDeviceFeatures *pFeatures ) {
@@ -848,6 +893,8 @@ bool CheckDeviceExtensionSupport( VkPhysicalDevice device ) {
     return false;
 }
 bool CheckValidationLayerSupport() {
+    method( "CheckValidationLayerSupport" );
+
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties( &layerCount, NULL );
 
@@ -864,9 +911,13 @@ bool CheckValidationLayerSupport() {
             } 
         }
 
-        if ( !layerFound ) return false;
+        if ( !layerFound ) {
+            ok( "CheckValidationLayerSupport not found" );
+            return false;
+        }
     }
 
+    ok( "CheckValidationLayerSupport found" );
     return true;
 }
 QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice device ) {
