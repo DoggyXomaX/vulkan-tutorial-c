@@ -17,6 +17,7 @@ void ClearFeatures( VkPhysicalDeviceFeatures* );
 void GetDriverVersion( char*, uint32_t, uint32_t );
 bool IsDeviceSuitable( VkPhysicalDevice );
 bool CheckDeviceExtensionSupport( VkPhysicalDevice );
+bool CheckValidationLayerSupport( void );
 QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice );
 SwapChainSupportDetails QuerySwapChainSupport( VkPhysicalDevice );
 VkSurfaceFormatKHR ChooseSwapSurfaceFormat( const VkSurfaceFormatKHR*, uint32_t );
@@ -37,12 +38,17 @@ AppProperties app = {
     .deviceExtensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
     },
+    .validationLayers = {
+        "VK_LAYER_KHRONOS_validation"
+    },
     .window = NULL,
     .vkPhysicalDevice = VK_NULL_HANDLE,
     
     .swapChainImages = NULL,
     .swapChainImageLength = 0,
     .swapChainImageViews = NULL,
+
+    .graphicsPipeline = NULL,
 
     .Run = Run
 };
@@ -188,6 +194,11 @@ VkResult InitVulkan() {
 VkResult CreateVulkanInstance() {
     entry( "CreateVulkanInstance" );
 
+    if ( ENABLE_VALIDATION_LAYERS && !CheckValidationLayerSupport() ) {
+        fail( "CreateVulkanInstance", "validation layers requested, but not available!\n", NULL );
+        return VK_ERROR_LAYER_NOT_PRESENT;
+    }
+
     VkApplicationInfo appInfo = {
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .pNext = NULL,
@@ -205,6 +216,11 @@ VkResult CreateVulkanInstance() {
         .enabledLayerCount = 0,
         .ppEnabledLayerNames = NULL
     };
+
+    if ( ENABLE_VALIDATION_LAYERS ) {
+        createInfo.enabledLayerCount = VALIDATION_LAYER_COUNT;
+        createInfo.ppEnabledLayerNames = app.validationLayers;
+    }
 
     uint32_t glfwExtensionCount = 0;
     const char **glfwExtensions;
@@ -278,23 +294,34 @@ VkResult CreateLogicalDevice() {
 
     QueueFamilyIndices indices = FindQueueFamilies( app.vkPhysicalDevice );
     
-    int queueCount = 2;
-    VkDeviceQueueCreateInfo queueCreateInfos[ queueCount ];
-    uint32_t uniqueQueueFamilies[] = {
-        indices.graphicsFamily.value,
-        indices.presentationFamily.value
-    };
-
+    int queueCount = indices.graphicsFamily.value == indices.presentationFamily.value ? 1 : 2;
     float queuePriority = 1.0f;
-    for ( int i = 0; i < queueCount; i++ ) {
+    VkDeviceQueueCreateInfo queueCreateInfos[ queueCount ];
+
+    if ( queueCount != 1 ) {
+        uint32_t uniqueQueueFamilies[] = {
+            indices.graphicsFamily.value,
+            indices.presentationFamily.value
+        };
+        for ( int i = 0; i < queueCount; i++ ) {
+            VkDeviceQueueCreateInfo queueCreateInfo = {
+                .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                .pNext = NULL,
+                .queueFamilyIndex = uniqueQueueFamilies[ i ],
+                .queueCount = 1,
+                .pQueuePriorities = &queuePriority
+            };
+            queueCreateInfos[ i ] = queueCreateInfo;
+        }
+    } else {
         VkDeviceQueueCreateInfo queueCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
             .pNext = NULL,
-            .queueFamilyIndex = uniqueQueueFamilies[ i ],
+            .queueFamilyIndex = indices.graphicsFamily.value,
             .queueCount = 1,
             .pQueuePriorities = &queuePriority
         };
-        queueCreateInfos[ i ] = queueCreateInfo;
+        queueCreateInfos[ 0 ] = queueCreateInfo;
     }
     
     VkPhysicalDeviceFeatures deviceFeatures;
@@ -470,8 +497,7 @@ VkResult CreateGraphicsPipeline() {
         .stage = VK_SHADER_STAGE_VERTEX_BIT,
         .pNext = NULL,
         .module = vertShaderModule,
-        .pName = "main",
-        .pSpecializationInfo = NULL
+        .pName = "main"
     };
     VkPipelineShaderStageCreateInfo fragShaderStageInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -621,10 +647,15 @@ VkResult CreateGraphicsPipeline() {
         .basePipelineIndex = 0
     };
 
-    for ( int i = 0; i < 2; i++ ) {
-        printf( "Shader stages[%d]: %s\n", i, shaderStages[i].pName );
-    }
+    puts( "Debugging pipeline info:" );
 
+    ////////////////////////
+    printf( "sType == %d\n", pipelineInfo.sType );
+    for ( int i = 0; i < pipelineInfo.stageCount; i++ ) {
+        printf( "Stages[%d]: %d, %s, %s\n", i, pipelineInfo.pStages[ i ].sType, pipelineInfo.pStages[i].pName, pipelineInfo.pStages[i].pNext );
+    }
+    ////////////////////////
+    
     result = vkCreateGraphicsPipelines(
         app.vkDevice,
         VK_NULL_HANDLE,
@@ -669,9 +700,11 @@ VkResult CreateRenderPass() {
         .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
         .colorAttachmentCount = 1,
         .pColorAttachments = &colorAttachmentRef,
-        .pInputAttachments = NULL,
         .pResolveAttachments = NULL,
         .pDepthStencilAttachment = NULL,
+        .inputAttachmentCount = 0,
+        .pInputAttachments = NULL,
+        .preserveAttachmentCount = 0,
         .pPreserveAttachments = NULL
     };
 
@@ -681,7 +714,9 @@ VkResult CreateRenderPass() {
         .attachmentCount = 1,
         .pAttachments = &colorAttachment,
         .subpassCount = 1,
-        .pSubpasses = &subpass
+        .pSubpasses = &subpass,
+        .dependencyCount = 0,
+        .pDependencies = NULL
     };
 
     VkResult result = vkCreateRenderPass(
@@ -812,6 +847,28 @@ bool CheckDeviceExtensionSupport( VkPhysicalDevice device ) {
     fail_method( "CheckDeviceExtensionSupport", "your gpu not supported required extensions!\n", NULL );
     return false;
 }
+bool CheckValidationLayerSupport() {
+    uint32_t layerCount;
+    vkEnumerateInstanceLayerProperties( &layerCount, NULL );
+
+    VkLayerProperties availableLayers[ layerCount ];
+    vkEnumerateInstanceLayerProperties( &layerCount, availableLayers );
+
+    for ( int i = 0; i < VALIDATION_LAYER_COUNT; i++ ) {
+        bool layerFound = false;
+
+        for ( int j = 0; j < layerCount; j++ ) {
+            if ( strcmp( app.validationLayers[ i ], availableLayers[ j ].layerName ) == 0 ) {
+                layerFound = true;
+                break;
+            } 
+        }
+
+        if ( !layerFound ) return false;
+    }
+
+    return true;
+}
 QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice device ) {
     method( "FindQueueFamilies" );
 
@@ -833,7 +890,7 @@ QueueFamilyIndices FindQueueFamilies( VkPhysicalDevice device ) {
     vkGetPhysicalDeviceQueueFamilyProperties( device, &queueFamilyCount, queueFamilyProperties );
 
     for ( int i = 0; i < queueFamilyCount; i++ ) {
-        if ( queueFamilyProperties[ i ].queueFlags & VK_QUEUE_GRAPHICS_BIT ) {
+        if ( !indices.graphicsFamily.isSet && queueFamilyProperties[ i ].queueFlags & VK_QUEUE_GRAPHICS_BIT ) {
             indices.graphicsFamily.isSet = true;
             indices.graphicsFamily.value = i;
         }

@@ -39,7 +39,14 @@ typedef struct {
 } SwapChainSupportDetails;
 
 #define DEVICE_EXTENSION_COUNT 1
+#define VALIDATION_LAYER_COUNT 1
 #define FILE_CHUNK_SIZE 8192
+
+#ifdef NDEBUG
+    #define ENABLE_VALIDATION_LAYERS false
+#else
+    #define ENABLE_VALIDATION_LAYERS true
+#endif
 
 typedef struct {
     int argc;
@@ -52,6 +59,7 @@ typedef struct {
     const char *engineName;
 
     const char *deviceExtensions[ DEVICE_EXTENSION_COUNT ];
+    const char *validationLayers[ VALIDATION_LAYER_COUNT ];
     GLFWwindow *window;
     VkInstance vkInstance;
     VkPhysicalDevice vkPhysicalDevice;
