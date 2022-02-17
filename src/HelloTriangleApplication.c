@@ -193,11 +193,11 @@ void Cleanup() {
     if ( app.commandBuffers ) free( app.commandBuffers );
 
     puts( "Cleaning Vulkan and glfw..." );
-    vkDestroySwapchainKHR( app.vkDevice, app.vkSwapchainKHR, NULL );
-    vkDestroyDevice( app.vkDevice, NULL );
-    vkDestroySurfaceKHR( app.vkInstance, app.vkSurfaceKHR, NULL );
-    vkDestroyInstance( app.vkInstance, NULL );
-    glfwDestroyWindow( app.window );
+    if ( app.vkSwapchainKHR ) vkDestroySwapchainKHR( app.vkDevice, app.vkSwapchainKHR, NULL );
+    if ( app.vkDevice ) vkDestroyDevice( app.vkDevice, NULL );
+    if ( app.vkSurfaceKHR ) vkDestroySurfaceKHR( app.vkInstance, app.vkSurfaceKHR, NULL );
+    if ( app.vkInstance ) vkDestroyInstance( app.vkInstance, NULL );
+    if ( app.window ) glfwDestroyWindow( app.window );
     glfwTerminate();
 
     ok( "Cleanup" );

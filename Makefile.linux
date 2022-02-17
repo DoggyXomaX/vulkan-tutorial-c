@@ -1,0 +1,15 @@
+FLAGS = -std=c++11 -O2
+LDFLAGS = -lglfw -lvulkan -ldl -lpthread -lX11 -lXxf86vm -lXrandr -lXi
+
+VulkanTest: main.c src/HelloTriangleApplication.c
+		gcc $(CFLAGS) -o bin/vulkan-test main.c src/*.c $(LDFLAGS)
+
+.PHONY:
+		test clean
+
+run: VulkanTest
+		./bin/vulkan-test
+
+clean:
+		rm -f bin/vulkan-test
+
